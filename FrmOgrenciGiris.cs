@@ -120,6 +120,13 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
         private void FrmOgrenciGiris_Load(object sender, EventArgs e)
         {
+            foreach (Control c in this.Controls)
+            {
+                if (c is TextBox)
+                    c.TabStop = true;
+                else
+                    c.TabStop = false;
+            }
 
             lblResimSec.Visible = false;
             panel1.Visible = false;
@@ -200,8 +207,7 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             {
                 MessageBox.Show("Giriş Başarılı !");
                 FrmOgrenci frm = new FrmOgrenci();
-                frm.ogrno = okulno;
-
+               
                 frm.Show();
                 this.Hide();
             }

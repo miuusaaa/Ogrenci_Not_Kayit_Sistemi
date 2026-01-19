@@ -20,16 +20,49 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
         private void btnOgrenci_Click(object sender, EventArgs e)
         {
-            panelContent.Controls.Clear();
-            FrmOgrenciListe frm = new FrmOgrenciListe()
-            {
-                TopLevel = false,
-                Dock = DockStyle.Fill,
-               FormBorderStyle = FormBorderStyle.None
-            };
-            panelContent.Controls.Add(frm);
+
+            FrmOgrenciIslemleri frm = new FrmOgrenciIslemleri();
             frm.Show();
-        
+
+        }
+
+        private void btnOgretmen_Click(object sender, EventArgs e)
+        {
+            FrmOgretmenIslemleri frm = new FrmOgretmenIslemleri();
+            frm.Show();
+        }
+
+        private void btnOkul_Click(object sender, EventArgs e)
+        {
+            FrmOkulIslemleri frm = new FrmOkulIslemleri();
+            frm.Show();
+        }
+
+        private void btnCikis_Click(object sender, EventArgs e)
+        {
+
+            Anasayfa frm = new Anasayfa();
+            this.Hide();
+            frm.Show();
+
+        }
+
+        private void btnSinif_Click(object sender, EventArgs e)
+        {
+            FrmSinifIslemleri frm = new FrmSinifIslemleri();
+            frm.Show();
+        }
+
+        private void btnDers_Click(object sender, EventArgs e)
+        {
+            FrmDersIslemleri frm = new FrmDersIslemleri();
+            frm.Show();
+        }
+
+        private void btnAdmin_Click(object sender, EventArgs e)
+        {
+            FrmAdminIslemleri frm = new FrmAdminIslemleri();
+            frm.Show();
         }
     }
 }

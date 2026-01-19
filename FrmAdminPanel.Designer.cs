@@ -33,11 +33,13 @@
             pictureBox1 = new PictureBox();
             label1 = new Label();
             panel2 = new Panel();
-            btnCikis = new Button();
+            btnAdmin = new Button();
             btnDers = new Button();
+            btnSinif = new Button();
+            btnCikis = new Button();
             btnOgretmen = new Button();
+            btnOkul = new Button();
             btnOgrenci = new Button();
-            panelContent = new Panel();
             panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             panel2.SuspendLayout();
@@ -51,7 +53,7 @@
             panel1.Dock = DockStyle.Top;
             panel1.Location = new Point(0, 0);
             panel1.Name = "panel1";
-            panel1.Size = new Size(797, 53);
+            panel1.Size = new Size(867, 53);
             panel1.TabIndex = 0;
             // 
             // pictureBox1
@@ -76,68 +78,94 @@
             // 
             // panel2
             // 
-            panel2.BackColor = SystemColors.ActiveCaption;
-            panel2.Controls.Add(btnCikis);
+            panel2.BackColor = SystemColors.MenuHighlight;
+            panel2.Controls.Add(btnAdmin);
             panel2.Controls.Add(btnDers);
+            panel2.Controls.Add(btnSinif);
+            panel2.Controls.Add(btnCikis);
             panel2.Controls.Add(btnOgretmen);
+            panel2.Controls.Add(btnOkul);
             panel2.Controls.Add(btnOgrenci);
             panel2.Location = new Point(0, 51);
             panel2.Name = "panel2";
-            panel2.Size = new Size(124, 400);
+            panel2.Size = new Size(867, 400);
             panel2.TabIndex = 1;
             // 
-            // btnCikis
+            // btnAdmin
             // 
-            btnCikis.Location = new Point(22, 252);
-            btnCikis.Name = "btnCikis";
-            btnCikis.Size = new Size(75, 54);
-            btnCikis.TabIndex = 3;
-            btnCikis.Text = "Çıkış";
-            btnCikis.UseVisualStyleBackColor = true;
+            btnAdmin.Location = new Point(72, 157);
+            btnAdmin.Name = "btnAdmin";
+            btnAdmin.Size = new Size(75, 55);
+            btnAdmin.TabIndex = 0;
+            btnAdmin.Text = "Admin İşlemleri";
+            btnAdmin.UseVisualStyleBackColor = true;
+            btnAdmin.Click += btnAdmin_Click;
             // 
             // btnDers
             // 
-            btnDers.Location = new Point(22, 170);
+            btnDers.Location = new Point(628, 159);
             btnDers.Name = "btnDers";
             btnDers.Size = new Size(75, 57);
-            btnDers.TabIndex = 2;
+            btnDers.TabIndex = 5;
             btnDers.Text = "Ders İşlemleri";
             btnDers.UseVisualStyleBackColor = true;
+            btnDers.Click += btnDers_Click;
+            // 
+            // btnSinif
+            // 
+            btnSinif.Location = new Point(508, 158);
+            btnSinif.Name = "btnSinif";
+            btnSinif.Size = new Size(75, 57);
+            btnSinif.TabIndex = 4;
+            btnSinif.Text = "Sınıf İşlemleri";
+            btnSinif.UseVisualStyleBackColor = true;
+            btnSinif.Click += btnSinif_Click;
+            // 
+            // btnCikis
+            // 
+            btnCikis.Location = new Point(740, 158);
+            btnCikis.Name = "btnCikis";
+            btnCikis.Size = new Size(75, 54);
+            btnCikis.TabIndex = 6;
+            btnCikis.Text = "Çıkış";
+            btnCikis.UseVisualStyleBackColor = true;
+            btnCikis.Click += btnCikis_Click;
             // 
             // btnOgretmen
             // 
-            btnOgretmen.Location = new Point(22, 98);
+            btnOgretmen.Location = new Point(282, 160);
             btnOgretmen.Name = "btnOgretmen";
             btnOgretmen.Size = new Size(75, 54);
-            btnOgretmen.TabIndex = 1;
+            btnOgretmen.TabIndex = 2;
             btnOgretmen.Text = "Öğretmen İşlemleri";
             btnOgretmen.UseVisualStyleBackColor = true;
+            btnOgretmen.Click += btnOgretmen_Click;
+            // 
+            // btnOkul
+            // 
+            btnOkul.Location = new Point(389, 160);
+            btnOkul.Name = "btnOkul";
+            btnOkul.Size = new Size(75, 57);
+            btnOkul.TabIndex = 3;
+            btnOkul.Text = "Okul İşlemleri";
+            btnOkul.UseVisualStyleBackColor = true;
+            btnOkul.Click += btnOkul_Click;
             // 
             // btnOgrenci
             // 
-            btnOgrenci.Location = new Point(22, 25);
+            btnOgrenci.Location = new Point(176, 159);
             btnOgrenci.Name = "btnOgrenci";
             btnOgrenci.Size = new Size(75, 55);
-            btnOgrenci.TabIndex = 0;
+            btnOgrenci.TabIndex = 1;
             btnOgrenci.Text = "Öğrenci İşlemleri";
             btnOgrenci.UseVisualStyleBackColor = true;
             btnOgrenci.Click += btnOgrenci_Click;
-            // 
-            // panelContent
-            // 
-            panelContent.BackColor = SystemColors.ControlLight;
-            panelContent.Dock = DockStyle.Right;
-            panelContent.Location = new Point(122, 53);
-            panelContent.Name = "panelContent";
-            panelContent.Size = new Size(675, 397);
-            panelContent.TabIndex = 2;
             // 
             // FrmAdminPanel
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(797, 450);
-            Controls.Add(panelContent);
+            ClientSize = new Size(867, 451);
             Controls.Add(panel2);
             Controls.Add(panel1);
             Name = "FrmAdminPanel";
@@ -156,9 +184,11 @@
         private PictureBox pictureBox1;
         private Panel panel2;
         private Button btnCikis;
-        private Button btnDers;
         private Button btnOgretmen;
+        private Button btnOkul;
         private Button btnOgrenci;
-        private Panel panelContent;
+        private Button btnDers;
+        private Button btnSinif;
+        private Button btnAdmin;
     }
 }

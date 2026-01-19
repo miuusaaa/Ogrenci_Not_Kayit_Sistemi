@@ -1,6 +1,6 @@
 ﻿namespace Öğrenci_Not_Kayıt_Sistemi
 {
-    partial class FrmOgrenciListe
+    partial class FrmOgrenciIslemleri
     {
         /// <summary>
         /// Required designer variable.
@@ -28,7 +28,6 @@
         /// </summary>
         private void InitializeComponent()
         {
-            dgvOgrenciler = new DataGridView();
             btnEkle = new Button();
             btnGuncelle = new Button();
             btnSil = new Button();
@@ -42,8 +41,6 @@
             txtEmail = new TextBox();
             label7 = new Label();
             txtTC = new TextBox();
-            label8 = new Label();
-            txtSifreHash = new TextBox();
             dtpDogumTarihi = new DateTimePicker();
             label1 = new Label();
             label5 = new Label();
@@ -56,30 +53,27 @@
             label11 = new Label();
             btnFotoSil = new Button();
             btnFotoYukle = new Button();
-            ((System.ComponentModel.ISupportInitialize)dgvOgrenciler).BeginInit();
+            cmbOkulu = new ComboBox();
+            label12 = new Label();
+            cmbGuncelOkul = new ComboBox();
+            label13 = new Label();
+            cmbGuncelSinif = new ComboBox();
+            label14 = new Label();
+            txtGuncelTelefon = new TextBox();
+            label16 = new Label();
+            txtGuncelEmail = new TextBox();
+            label17 = new Label();
+            label18 = new Label();
+            txtGuncelOgrNo = new TextBox();
+            dgvOgrenciler = new DataGridView();
+            btnAktiflikKaydet = new Button();
             ((System.ComponentModel.ISupportInitialize)pbFotograf).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dgvOgrenciler).BeginInit();
             SuspendLayout();
-            // 
-            // dgvOgrenciler
-            // 
-            dgvOgrenciler.AllowUserToAddRows = false;
-            dgvOgrenciler.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            dgvOgrenciler.CausesValidation = false;
-            dgvOgrenciler.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvOgrenciler.Dock = DockStyle.Top;
-            dgvOgrenciler.Location = new Point(0, 0);
-            dgvOgrenciler.MultiSelect = false;
-            dgvOgrenciler.Name = "dgvOgrenciler";
-            dgvOgrenciler.ReadOnly = true;
-            dgvOgrenciler.RowHeadersVisible = false;
-            dgvOgrenciler.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvOgrenciler.Size = new Size(857, 356);
-            dgvOgrenciler.TabIndex = 0;
-            dgvOgrenciler.CellClick += dgvOgrenciler_CellClick;
             // 
             // btnEkle
             // 
-            btnEkle.Location = new Point(318, 495);
+            btnEkle.Location = new Point(142, 735);
             btnEkle.Name = "btnEkle";
             btnEkle.Size = new Size(75, 43);
             btnEkle.TabIndex = 1;
@@ -89,7 +83,7 @@
             // 
             // btnGuncelle
             // 
-            btnGuncelle.Location = new Point(409, 495);
+            btnGuncelle.Location = new Point(508, 665);
             btnGuncelle.Name = "btnGuncelle";
             btnGuncelle.Size = new Size(75, 43);
             btnGuncelle.TabIndex = 2;
@@ -99,17 +93,17 @@
             // 
             // btnSil
             // 
-            btnSil.Location = new Point(502, 495);
+            btnSil.Location = new Point(955, -1);
             btnSil.Name = "btnSil";
-            btnSil.Size = new Size(75, 43);
+            btnSil.Size = new Size(172, 186);
             btnSil.TabIndex = 3;
-            btnSil.Text = "Öğrenci Sil";
+            btnSil.Text = "Seçili öğrenciyi sistemden sil";
             btnSil.UseVisualStyleBackColor = true;
             btnSil.Click += btnDelete_Click;
             // 
             // txtOgrNo
             // 
-            txtOgrNo.Location = new Point(128, 386);
+            txtOgrNo.Location = new Point(183, 603);
             txtOgrNo.Name = "txtOgrNo";
             txtOgrNo.Size = new Size(100, 23);
             txtOgrNo.TabIndex = 4;
@@ -118,7 +112,7 @@
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new Point(263, 368);
+            label2.Location = new Point(93, 394);
             label2.Name = "label2";
             label2.Size = new Size(22, 15);
             label2.TabIndex = 7;
@@ -126,7 +120,7 @@
             // 
             // txtOgrAd
             // 
-            txtOgrAd.Location = new Point(234, 386);
+            txtOgrAd.Location = new Point(172, 394);
             txtOgrAd.Name = "txtOgrAd";
             txtOgrAd.Size = new Size(100, 23);
             txtOgrAd.TabIndex = 6;
@@ -134,7 +128,7 @@
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new Point(368, 368);
+            label3.Location = new Point(96, 427);
             label3.Name = "label3";
             label3.Size = new Size(39, 15);
             label3.TabIndex = 9;
@@ -142,7 +136,7 @@
             // 
             // txtOgrSoyad
             // 
-            txtOgrSoyad.Location = new Point(341, 386);
+            txtOgrSoyad.Location = new Point(172, 427);
             txtOgrSoyad.Name = "txtOgrSoyad";
             txtOgrSoyad.Size = new Size(100, 23);
             txtOgrSoyad.TabIndex = 8;
@@ -150,7 +144,7 @@
             // label4
             // 
             label4.AutoSize = true;
-            label4.Location = new Point(739, 362);
+            label4.Location = new Point(103, 679);
             label4.Name = "label4";
             label4.Size = new Size(30, 15);
             label4.TabIndex = 11;
@@ -159,7 +153,7 @@
             // label6
             // 
             label6.AutoSize = true;
-            label6.Location = new Point(539, 418);
+            label6.Location = new Point(91, 562);
             label6.Name = "label6";
             label6.Size = new Size(41, 15);
             label6.TabIndex = 15;
@@ -167,7 +161,7 @@
             // 
             // txtEmail
             // 
-            txtEmail.Location = new Point(511, 447);
+            txtEmail.Location = new Point(182, 559);
             txtEmail.Name = "txtEmail";
             txtEmail.Size = new Size(100, 23);
             txtEmail.TabIndex = 14;
@@ -175,7 +169,7 @@
             // label7
             // 
             label7.AutoSize = true;
-            label7.Location = new Point(601, 368);
+            label7.Location = new Point(96, 491);
             label7.Name = "label7";
             label7.Size = new Size(21, 15);
             label7.TabIndex = 17;
@@ -183,31 +177,15 @@
             // 
             // txtTC
             // 
-            txtTC.Location = new Point(572, 386);
+            txtTC.Location = new Point(172, 485);
             txtTC.Name = "txtTC";
             txtTC.Size = new Size(100, 23);
             txtTC.TabIndex = 16;
             txtTC.KeyPress += txtTC_KeyPress;
             // 
-            // label8
-            // 
-            label8.AutoSize = true;
-            label8.Location = new Point(671, 429);
-            label8.Name = "label8";
-            label8.Size = new Size(30, 15);
-            label8.TabIndex = 19;
-            label8.Text = "Şifre";
-            // 
-            // txtSifreHash
-            // 
-            txtSifreHash.Location = new Point(643, 447);
-            txtSifreHash.Name = "txtSifreHash";
-            txtSifreHash.Size = new Size(100, 23);
-            txtSifreHash.TabIndex = 18;
-            // 
             // dtpDogumTarihi
             // 
-            dtpDogumTarihi.Location = new Point(457, 386);
+            dtpDogumTarihi.Location = new Point(182, 456);
             dtpDogumTarihi.Name = "dtpDogumTarihi";
             dtpDogumTarihi.Size = new Size(79, 23);
             dtpDogumTarihi.TabIndex = 20;
@@ -215,7 +193,7 @@
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(144, 368);
+            label1.Location = new Point(92, 606);
             label1.Name = "label1";
             label1.Size = new Size(68, 15);
             label1.TabIndex = 5;
@@ -224,7 +202,7 @@
             // label5
             // 
             label5.AutoSize = true;
-            label5.Location = new Point(457, 365);
+            label5.Location = new Point(81, 456);
             label5.Name = "label5";
             label5.Size = new Size(79, 15);
             label5.TabIndex = 21;
@@ -233,7 +211,7 @@
             // label9
             // 
             label9.AutoSize = true;
-            label9.Location = new Point(401, 418);
+            label9.Location = new Point(91, 525);
             label9.Name = "label9";
             label9.Size = new Size(46, 15);
             label9.TabIndex = 23;
@@ -241,7 +219,7 @@
             // 
             // txtTelefon
             // 
-            txtTelefon.Location = new Point(373, 447);
+            txtTelefon.Location = new Point(182, 525);
             txtTelefon.Name = "txtTelefon";
             txtTelefon.Size = new Size(100, 23);
             txtTelefon.TabIndex = 22;
@@ -250,9 +228,9 @@
             // 
             // pbFotograf
             // 
-            pbFotograf.Location = new Point(176, 437);
+            pbFotograf.Location = new Point(518, 391);
             pbFotograf.Name = "pbFotograf";
-            pbFotograf.Size = new Size(100, 50);
+            pbFotograf.Size = new Size(90, 50);
             pbFotograf.SizeMode = PictureBoxSizeMode.Zoom;
             pbFotograf.TabIndex = 24;
             pbFotograf.TabStop = false;
@@ -260,7 +238,7 @@
             // label10
             // 
             label10.AutoSize = true;
-            label10.Location = new Point(297, 455);
+            label10.Location = new Point(411, 404);
             label10.Name = "label10";
             label10.Size = new Size(52, 15);
             label10.TabIndex = 25;
@@ -269,14 +247,14 @@
             // cmbSinif
             // 
             cmbSinif.FormattingEnabled = true;
-            cmbSinif.Location = new Point(694, 386);
+            cmbSinif.Location = new Point(183, 676);
             cmbSinif.Name = "cmbSinif";
-            cmbSinif.Size = new Size(121, 23);
+            cmbSinif.Size = new Size(100, 23);
             cmbSinif.TabIndex = 26;
             // 
             // txtFilter
             // 
-            txtFilter.Location = new Point(112, 515);
+            txtFilter.Location = new Point(683, 786);
             txtFilter.Name = "txtFilter";
             txtFilter.Size = new Size(100, 23);
             txtFilter.TabIndex = 27;
@@ -285,7 +263,7 @@
             // label11
             // 
             label11.AutoSize = true;
-            label11.Location = new Point(50, 518);
+            label11.Location = new Point(621, 789);
             label11.Name = "label11";
             label11.Size = new Size(25, 15);
             label11.TabIndex = 28;
@@ -293,9 +271,9 @@
             // 
             // btnFotoSil
             // 
-            btnFotoSil.Location = new Point(21, 442);
+            btnFotoSil.Location = new Point(619, 424);
             btnFotoSil.Name = "btnFotoSil";
-            btnFotoSil.Size = new Size(68, 41);
+            btnFotoSil.Size = new Size(80, 31);
             btnFotoSil.TabIndex = 30;
             btnFotoSil.Text = "Fotoğrafı Sil";
             btnFotoSil.UseVisualStyleBackColor = true;
@@ -303,20 +281,164 @@
             // 
             // btnFotoYukle
             // 
-            btnFotoYukle.Location = new Point(105, 437);
+            btnFotoYukle.Location = new Point(621, 385);
             btnFotoYukle.Name = "btnFotoYukle";
-            btnFotoYukle.Size = new Size(53, 50);
+            btnFotoYukle.Size = new Size(78, 34);
             btnFotoYukle.TabIndex = 29;
             btnFotoYukle.Text = "Yükle";
             btnFotoYukle.UseVisualStyleBackColor = true;
             btnFotoYukle.Click += btnFotoYukle_Click;
             // 
-            // FrmOgrenciListe
+            // cmbOkulu
+            // 
+            cmbOkulu.FormattingEnabled = true;
+            cmbOkulu.Location = new Point(183, 641);
+            cmbOkulu.Name = "cmbOkulu";
+            cmbOkulu.Size = new Size(100, 23);
+            cmbOkulu.TabIndex = 32;
+            cmbOkulu.SelectedIndexChanged += cmbOkulu_SelectedIndexChanged;
+            // 
+            // label12
+            // 
+            label12.AutoSize = true;
+            label12.Location = new Point(99, 644);
+            label12.Name = "label12";
+            label12.Size = new Size(39, 15);
+            label12.TabIndex = 31;
+            label12.Text = "Okulu";
+            // 
+            // cmbGuncelOkul
+            // 
+            cmbGuncelOkul.FormattingEnabled = true;
+            cmbGuncelOkul.Location = new Point(508, 579);
+            cmbGuncelOkul.Name = "cmbGuncelOkul";
+            cmbGuncelOkul.Size = new Size(100, 23);
+            cmbGuncelOkul.TabIndex = 44;
+            cmbGuncelOkul.SelectedIndexChanged += cmbGuncelOkul_SelectedIndexChanged;
+            // 
+            // label13
+            // 
+            label13.AutoSize = true;
+            label13.Location = new Point(424, 582);
+            label13.Name = "label13";
+            label13.Size = new Size(39, 15);
+            label13.TabIndex = 43;
+            label13.Text = "Okulu";
+            // 
+            // cmbGuncelSinif
+            // 
+            cmbGuncelSinif.FormattingEnabled = true;
+            cmbGuncelSinif.Location = new Point(508, 614);
+            cmbGuncelSinif.Name = "cmbGuncelSinif";
+            cmbGuncelSinif.Size = new Size(100, 23);
+            cmbGuncelSinif.TabIndex = 42;
+            // 
+            // label14
+            // 
+            label14.AutoSize = true;
+            label14.Location = new Point(417, 459);
+            label14.Name = "label14";
+            label14.Size = new Size(46, 15);
+            label14.TabIndex = 41;
+            label14.Text = "Telefon";
+            // 
+            // txtGuncelTelefon
+            // 
+            txtGuncelTelefon.Location = new Point(508, 459);
+            txtGuncelTelefon.Name = "txtGuncelTelefon";
+            txtGuncelTelefon.Size = new Size(100, 23);
+            txtGuncelTelefon.TabIndex = 40;
+            txtGuncelTelefon.Text = "+90";
+            txtGuncelTelefon.KeyPress += txtGuncelTelefon_KeyPress;
+            // 
+            // label16
+            // 
+            label16.AutoSize = true;
+            label16.Location = new Point(422, 496);
+            label16.Name = "label16";
+            label16.Size = new Size(41, 15);
+            label16.TabIndex = 37;
+            label16.Text = "E-mail";
+            // 
+            // txtGuncelEmail
+            // 
+            txtGuncelEmail.Location = new Point(508, 493);
+            txtGuncelEmail.Name = "txtGuncelEmail";
+            txtGuncelEmail.Size = new Size(100, 23);
+            txtGuncelEmail.TabIndex = 36;
+            // 
+            // label17
+            // 
+            label17.AutoSize = true;
+            label17.Location = new Point(433, 617);
+            label17.Name = "label17";
+            label17.Size = new Size(30, 15);
+            label17.TabIndex = 35;
+            label17.Text = "Sınıf";
+            // 
+            // label18
+            // 
+            label18.AutoSize = true;
+            label18.Location = new Point(395, 544);
+            label18.Name = "label18";
+            label18.Size = new Size(68, 15);
+            label18.TabIndex = 34;
+            label18.Text = "Öğrenci No";
+            // 
+            // txtGuncelOgrNo
+            // 
+            txtGuncelOgrNo.Location = new Point(508, 541);
+            txtGuncelOgrNo.Name = "txtGuncelOgrNo";
+            txtGuncelOgrNo.Size = new Size(100, 23);
+            txtGuncelOgrNo.TabIndex = 33;
+            txtGuncelOgrNo.KeyPress += txtGuncelOgrNo_KeyPress;
+            // 
+            // dgvOgrenciler
+            // 
+            dgvOgrenciler.AllowUserToAddRows = false;
+            dgvOgrenciler.AllowUserToDeleteRows = false;
+            dgvOgrenciler.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvOgrenciler.CausesValidation = false;
+            dgvOgrenciler.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvOgrenciler.Location = new Point(-1, -1);
+            dgvOgrenciler.MultiSelect = false;
+            dgvOgrenciler.Name = "dgvOgrenciler";
+            dgvOgrenciler.ReadOnly = true;
+            dgvOgrenciler.RowHeadersVisible = false;
+            dgvOgrenciler.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvOgrenciler.Size = new Size(950, 356);
+            dgvOgrenciler.TabIndex = 45;
+            // 
+            // btnAktiflikKaydet
+            // 
+            btnAktiflikKaydet.Location = new Point(955, 180);
+            btnAktiflikKaydet.Name = "btnAktiflikKaydet";
+            btnAktiflikKaydet.Size = new Size(172, 175);
+            btnAktiflikKaydet.TabIndex = 46;
+            btnAktiflikKaydet.Text = "Seçili öğrencileri Aktif/Pasif Yap";
+            btnAktiflikKaydet.UseVisualStyleBackColor = true;
+            btnAktiflikKaydet.Click += btnAktiflikKaydet_Click;
+            // 
+            // FrmOgrenciIslemleri
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             AutoScroll = true;
-            ClientSize = new Size(857, 561);
+            ClientSize = new Size(1129, 833);
+            Controls.Add(btnAktiflikKaydet);
+            Controls.Add(dgvOgrenciler);
+            Controls.Add(cmbGuncelOkul);
+            Controls.Add(label13);
+            Controls.Add(cmbGuncelSinif);
+            Controls.Add(label14);
+            Controls.Add(txtGuncelTelefon);
+            Controls.Add(label16);
+            Controls.Add(txtGuncelEmail);
+            Controls.Add(label17);
+            Controls.Add(label18);
+            Controls.Add(txtGuncelOgrNo);
+            Controls.Add(cmbOkulu);
+            Controls.Add(label12);
             Controls.Add(btnFotoSil);
             Controls.Add(btnFotoYukle);
             Controls.Add(label11);
@@ -328,8 +450,6 @@
             Controls.Add(txtTelefon);
             Controls.Add(label5);
             Controls.Add(dtpDogumTarihi);
-            Controls.Add(label8);
-            Controls.Add(txtSifreHash);
             Controls.Add(label7);
             Controls.Add(txtTC);
             Controls.Add(label6);
@@ -344,12 +464,11 @@
             Controls.Add(btnSil);
             Controls.Add(btnGuncelle);
             Controls.Add(btnEkle);
-            Controls.Add(dgvOgrenciler);
-            Name = "FrmOgrenciListe";
+            Name = "FrmOgrenciIslemleri";
             Text = "Ara";
             Load += FrmOgrenciListe_Load;
-            ((System.ComponentModel.ISupportInitialize)dgvOgrenciler).EndInit();
             ((System.ComponentModel.ISupportInitialize)pbFotograf).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dgvOgrenciler).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -384,5 +503,20 @@
         private Label label11;
         private Button btnFotoSil;
         private Button btnFotoYukle;
+        private ComboBox cmbOkulu;
+        private Label label12;
+        private ComboBox cmbGuncelOkul;
+        private Label label13;
+        private ComboBox cmbGuncelSinif;
+        private Label label14;
+        private TextBox txtGuncelTelefon;
+        private Label label15;
+        private TextBox txtGuncelSifre;
+        private Label label16;
+        private TextBox txtGuncelEmail;
+        private Label label17;
+        private Label label18;
+        private TextBox txtGuncelOgrNo;
+        private Button btnAktiflikKaydet;
     }
 }
