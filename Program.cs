@@ -12,7 +12,7 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
             // Geçici olarak doğrudan admin panelini aç
-            Application.Run(new AnaSayfa());
+            Application.Run(new Anasayfa());
 
         }
     }
