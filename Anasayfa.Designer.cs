@@ -35,44 +35,55 @@
             // 
             // btnOgrGiris
             // 
-            btnOgrGiris.Location = new Point(333, 52);
+            btnOgrGiris.BackColor = Color.MidnightBlue;
+            btnOgrGiris.Font = new Font("Tahoma", 18F, FontStyle.Bold, GraphicsUnit.Point, 162);
+            btnOgrGiris.Location = new Point(365, 35);
             btnOgrGiris.Name = "btnOgrGiris";
-            btnOgrGiris.Size = new Size(138, 70);
+            btnOgrGiris.Size = new Size(199, 153);
             btnOgrGiris.TabIndex = 0;
             btnOgrGiris.Text = "Öğrenci Giriş";
-            btnOgrGiris.UseVisualStyleBackColor = true;
+            btnOgrGiris.UseVisualStyleBackColor = false;
             btnOgrGiris.Click += btnOgrGiris_Click;
             // 
             // btnOgmGiris
             // 
-            btnOgmGiris.Location = new Point(333, 172);
+            btnOgmGiris.BackColor = Color.DarkGreen;
+            btnOgmGiris.Font = new Font("Tahoma", 18F, FontStyle.Bold);
+            btnOgmGiris.Location = new Point(241, 206);
             btnOgmGiris.Name = "btnOgmGiris";
-            btnOgmGiris.Size = new Size(138, 79);
+            btnOgmGiris.Size = new Size(458, 90);
             btnOgmGiris.TabIndex = 1;
             btnOgmGiris.Text = "Öğretmen Giriş";
-            btnOgmGiris.UseVisualStyleBackColor = true;
+            btnOgmGiris.UseVisualStyleBackColor = false;
             btnOgmGiris.Click += btnOgmGiris_Click;
             // 
             // btnAdminGiris
             // 
-            btnAdminGiris.Location = new Point(333, 310);
+            btnAdminGiris.BackColor = Color.Indigo;
+            btnAdminGiris.Font = new Font("Tahoma", 18F, FontStyle.Bold);
+            btnAdminGiris.Location = new Point(365, 315);
             btnAdminGiris.Name = "btnAdminGiris";
-            btnAdminGiris.Size = new Size(138, 79);
+            btnAdminGiris.Size = new Size(199, 147);
             btnAdminGiris.TabIndex = 2;
             btnAdminGiris.Text = "Admin Giriş";
-            btnAdminGiris.UseVisualStyleBackColor = true;
+            btnAdminGiris.UseVisualStyleBackColor = false;
             btnAdminGiris.Click += btnAdminGiris_Click;
             // 
             // Anasayfa
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleDimensions = new SizeF(8F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
+            BackColor = Color.DarkRed;
+            ClientSize = new Size(914, 510);
             Controls.Add(btnAdminGiris);
             Controls.Add(btnOgmGiris);
             Controls.Add(btnOgrGiris);
+            Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 162);
+            ForeColor = Color.Red;
+            FormBorderStyle = FormBorderStyle.FixedSingle;
             Name = "Anasayfa";
-            Text = "Hoşgeldiniz";
+            Text = "Not Bilgilendirme Sistemine Hoşgeldiniz !!!";
+            Load += Anasayfa_Load;
             ResumeLayout(false);
         }
 

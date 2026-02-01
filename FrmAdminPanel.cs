@@ -64,6 +64,11 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             FrmAdminIslemleri frm = new FrmAdminIslemleri();
             frm.Show();
         }
+
+        private void FrmAdminPanel_Load(object sender, EventArgs e)
+        {
+            this.FormBorderStyle = FormBorderStyle.FixedSingle; //formu kullanıcı büyütmesin istiyorsan kullan.
+        }
     }
 }
 

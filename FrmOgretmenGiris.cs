@@ -1,95 +1,125 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.Web.WebView2.WinForms;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Drawing;
-using System.IO;
-using System.Linq;
+using System.Net.Http;
+using System.Security.Policy;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.IO;
+
+
 
 namespace Öğrenci_Not_Kayıt_Sistemi
 {
     public partial class FrmOgretmenGiris : Form
     {
+        private string connectionString = "Server=AKALI;Database=OgrenciNotKayitSistemi;Trusted_Connection=True;TrustServerCertificate=True;";
+        private string kullaniciAdi;
+        private string query = @"Select OgretmenID,
+    KullaniciAdi,
+    SifreHash,
+    IlkGiris,
+    Email,
+    Telefon,
+    Aktif
+FROM OGRETMEN_GIRIS
+WHERE KullaniciAdi = @id";
+        private string emailOtp;
+        private string telefonOtp;
+        private DateTime otpExpireTime;
+        private string gonderilecekEmail;
+        private string gonderilecekTelefon;
+        private int denemegirissayisi = 0;
+        private int denemeotpsayisi = 0;
+        private int denemeresimsayisi = 0;
+
         public FrmOgretmenGiris()
         {
             InitializeComponent();
         }
 
-        string con = "Server=AKALI;Database=OgrenciNotKayitSistemi;Trusted_Connection=True;TrustServerCertificate=True;";
-        private bool girisTamamlandi = false;
-
         private void FrmOgretmenGiris_Load(object sender, EventArgs e)
         {
-            foreach (Control c in this.Controls)
-            {
-                if (c is TextBox)
-                    c.TabStop = true;
-                else
-                    c.TabStop = false;
-            }
 
-            // Başlangıçta doğrulama elemanları gizli
-            pictureBox2.Visible = false;
-            pictureBox3.Visible = false;
-            pictureBox4.Visible = false;
-            pictureBox5.Visible = false;
-            checkBox1.Visible = false;
-            checkBox2.Visible = false;
-            checkBox3.Visible = false;
-            checkBox4.Visible = false;
-            btnDevam.Visible = false;
-            lblTalimat.Visible = false;
+            this.AutoScaleMode = AutoScaleMode.None;
+            this.Size = new Size(816, 400); //panel boşlukları veya panelin kırpılma sorunu buradan ayarlanıyo
+            this.FormBorderStyle = FormBorderStyle.FixedSingle; //formu kullanıcı büyütmesin istiyorsan kullan.
 
-            this.Width = 816;
-            this.Height = 489;
+            panelIlkGiris.Visible = false;
+            panelResimler.Visible = false;
+            panelOTP.Visible = false;
+            panelGiris.Visible = true;
+
+            this.AutoSize = false;
+            this.StartPosition = FormStartPosition.CenterScreen;
+
 
             mskSifre.PasswordChar = '*';
+            mskYeniSifre.PasswordChar = '*';
+            mskYeniSifreTekrar.PasswordChar = '*';
+
         }
+
 
         private void btnGiris_Click(object sender, EventArgs e)
         {
-            string kullanici = txtKullaniciAdi.Text;
-            string sifre = mskSifre.Text;
+            kullaniciAdi = txtKullaniciAdi.Text.Trim();
+            string sifre = mskSifre.Text.Trim();
 
-            if (string.IsNullOrWhiteSpace(kullanici) || string.IsNullOrWhiteSpace(sifre))
+            if (string.IsNullOrWhiteSpace(kullaniciAdi) || string.IsNullOrWhiteSpace(sifre))
             {
-                MessageBox.Show("Lütfen tüm alanları doldurun !");
+                MessageBox.Show("Kullanıcı adı ve şifre boş bırakılamaz.");
                 return;
             }
 
-            using (SqlConnection conn = new SqlConnection(con))
+            using (SqlConnection con = new SqlConnection(connectionString))
             {
-                conn.Open();
-                string query = @"SELECT Aktif, SifreHash 
-                 FROM OGRETMEN_GIRIS 
-                 WHERE KullaniciAdi = @kullanici";
+                con.Open();
 
-                using (SqlCommand cmd = new SqlCommand(query, conn))
+                using (SqlCommand cmd = new SqlCommand(query, con))
                 {
-                    cmd.Parameters.AddWithValue("@kullanici", kullanici);
+                    cmd.Parameters.AddWithValue("@id", kullaniciAdi);
 
                     using (SqlDataReader dr = cmd.ExecuteReader())
                     {
-                        // Kullanıcı adı yoksa
                         if (!dr.Read())
                         {
-                            MessageBox.Show("Kullanıcı adı veya şifre hatalı!");
+                            denemegirissayisi++;
+
+                            if (denemegirissayisi == 3)
+                            {
+                                panelGirisGuvenliBlokeEt(kullaniciAdi);  
+                                return;
+                            }
+
+                            MessageBox.Show("Kullanıcı adı veya şifre yanlış.");
                             return;
                         }
 
-                        bool aktifMi = Convert.ToBoolean(dr["Aktif"]);
-                        /*string sifreHash = dr["SifreHash"].ToString();
+                        bool aktifMi = dr["Aktif"] != DBNull.Value && Convert.ToBoolean(dr["Aktif"]);
+
+                        string hash = dr["SifreHash"].ToString();
 
 
-                        if (!BCrypt.Net.BCrypt.Verify(sifre, sifreHash))
+                        if (!BCrypt.Net.BCrypt.Verify(sifre, hash))
                         {
-                            MessageBox.Show("Kullanıcı adı veya şifre hatalı!");
+                            denemegirissayisi++;
+
+                            if (denemegirissayisi == 3)
+                            {
+                                panelGirisGuvenliBlokeEt(kullaniciAdi);
+                                return;
+                            }
+
+                            MessageBox.Show("Kullanıcı adı veya şifre yanlış.");
                             return;
                         }
-                       */
 
-                        // Kullanıcı pasifse
                         if (!aktifMi)
                         {
                             MessageBox.Show(
@@ -98,86 +128,183 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                             return;
                         }
 
-                        // Şifre yanlışsa
-                        
-
-                        // ===== BURASI BAŞARILI GİRİŞ =====
-                        girisTamamlandi = true;
-
-                        pictureBox2.Visible = true;
-                        pictureBox3.Visible = true;
-                        pictureBox4.Visible = true;
-                        pictureBox5.Visible = true;
-                        checkBox1.Visible = true;
-                        checkBox2.Visible = true;
-                        checkBox3.Visible = true;
-                        checkBox4.Visible = true;
-                        btnDevam.Visible = true;
-                        lblTalimat.Visible = true;
-
-                        this.Width = 872;
-                        this.Height = 674;
-
+                        panelGiris.Visible = false;
+                        panelResimler.Visible = true;
                         ResimleriGetirOgretmen();
+                        denemegirissayisi = 0;
                     }
                 }
 
             }
         }
 
-        private void ResimleriGetirOgretmen()
+        private void btnGeri_Click(object sender, EventArgs e)
         {
-            string klasor = @"C:\Users\omerd\OneDrive\Masaüstü\öğretmenresimler";
-            string[] tumResimler = Directory.GetFiles(klasor, "*.png");
+            Anasayfa frm = new Anasayfa();
+            this.Hide();
+            frm.Show();
 
-            Random rnd = new Random();
+        }
 
-            var nesneTurleri = tumResimler
-                .Select(x => Regex.Replace(Path.GetFileNameWithoutExtension(x), @"\s*\(.*?\)", "").ToLower())
-                .Distinct()
-                .ToList();
+        private void btnKaydet_Click(object sender, EventArgs e)
+        {
 
-            var dogruNesneTurleri = nesneTurleri.OrderBy(x => rnd.Next()).Take(2).ToArray();
-
-            List<string> dogruResimler = new List<string>();
-            foreach (var tur in dogruNesneTurleri)
+            if (mskYeniSifre.Text != mskYeniSifreTekrar.Text)
             {
-                var resimler = tumResimler
-                    .Where(x => Regex.Replace(Path.GetFileNameWithoutExtension(x), @"\s*\(.*?\)", "").ToLower() == tur)
-                    .ToArray();
+                MessageBox.Show("Şifreler uyuşmuyor.");
+                return;
+            }
 
-                if (resimler.Length > 0)
+            if (mskYeniSifre.Text.Length < 8)
+            {
+                MessageBox.Show("Şifre en az 8 karakter olmalıdır.");
+                return;
+            }
+
+            string yeniHash = BCrypt.Net.BCrypt.HashPassword(mskYeniSifre.Text);
+
+            using (SqlConnection con = new SqlConnection(connectionString))
+            {
+                con.Open();
+
+                string sql = @"UPDATE OGRETMEN_GIRIS
+                       SET SifreHash = @hash,
+                           IlkGiris = 0
+                       WHERE KullaniciAdi = @id";
+
+                using (SqlCommand cmd = new SqlCommand(sql, con))
                 {
-                    string secilen = resimler[rnd.Next(resimler.Length)];
-                    dogruResimler.Add(secilen);
+                    cmd.Parameters.AddWithValue("@hash", yeniHash);
+                    cmd.Parameters.AddWithValue("@id", kullaniciAdi);
+                    cmd.ExecuteNonQuery();
                 }
             }
 
-            var yanlisResimler = tumResimler
-                .Except(dogruResimler)
-                .OrderBy(x => rnd.Next())
-                .Take(4 - dogruResimler.Count)
+            MessageBox.Show("Şifre başarıyla değiştirildi.");
+
+            this.Hide();
+            FrmOgretmenGiris frm = new FrmOgretmenGiris();
+            frm.Show();
+            this.Close();
+
+        }
+
+        private void ResimleriGetirOgretmen()
+        {
+            List<(string nesneAdi, byte[] resim)> tumResimler = new List<(string, byte[])>();
+
+            using (SqlConnection con = new SqlConnection(connectionString))
+            {
+                con.Open();
+                string sql = "SELECT NesneAdi, Resim FROM OGRETMEN_CAPTCHA_RESIMLERI";
+
+                using (SqlCommand cmd = new SqlCommand(sql, con))
+                using (SqlDataReader dr = cmd.ExecuteReader())
+                {
+                    while (dr.Read())
+                    {
+                        tumResimler.Add((
+                            dr["NesneAdi"].ToString(),
+                            (byte[])dr["Resim"]
+                        ));
+                    }
+                }
+            }
+
+            Random rnd = new Random();
+
+            string Temizle(string ad)
+            {
+                return Regex.Replace(ad, @"\s*\(.*?\)", "").ToLower();
+            }
+
+            var nesneTurleri = tumResimler
+                .Select(x => Temizle(x.nesneAdi))
+                .Distinct()
                 .ToList();
 
-            var secilen4 = dogruResimler.Concat(yanlisResimler).OrderBy(x => rnd.Next()).ToArray();
+            // 2 tür seç
+            var dogruTurler = nesneTurleri
+                .OrderBy(x => rnd.Next())
+                .Take(2)
+                .ToList();
+
+            List<(string nesneAdi, byte[] resim)> dogruResimler = new List<(string, byte[])>();
+
+            // 🔑 Her türden en az 1 resim garanti
+            foreach (var tur in dogruTurler)
+            {
+                var resim = tumResimler
+                    .Where(x => Temizle(x.nesneAdi) == tur)
+                    .OrderBy(x => rnd.Next())
+                    .First();
+
+                dogruResimler.Add(resim);
+            }
+
+            // Toplam doğru adedi (2–4 arası)
+            int toplamDogruAdet;
+            if (rnd.Next(0, 100) < 25)
+                toplamDogruAdet = 4;
+            else
+                toplamDogruAdet = rnd.Next(1, 4); // 2 veya 3
+
+            int eklenecekDogru = toplamDogruAdet - dogruResimler.Count;
+
+            if (eklenecekDogru > 0)
+            {
+                var ekstraDogru = tumResimler
+                    .Where(x => dogruTurler.Contains(Temizle(x.nesneAdi))
+                             && !dogruResimler.Contains(x))
+                    .OrderBy(x => rnd.Next())
+                    .Take(eklenecekDogru)
+                    .ToList();
+
+                dogruResimler.AddRange(ekstraDogru);
+            }
+
+            int kalan = 4 - dogruResimler.Count;
+
+            var yanlisResimler = tumResimler
+                .Where(x => !dogruTurler.Contains(Temizle(x.nesneAdi)))
+                .OrderBy(x => rnd.Next())
+                .Take(kalan)
+                .ToList();
+
+            var secilen4 = dogruResimler
+                .Concat(yanlisResimler)
+                .OrderBy(x => rnd.Next())
+                .ToList();
 
             PictureBox[] boxes = { pictureBox2, pictureBox3, pictureBox4, pictureBox5 };
             CheckBox[] checkBoxes = { checkBox1, checkBox2, checkBox3, checkBox4 };
 
             for (int i = 0; i < 4; i++)
             {
-                boxes[i].Image = Image.FromFile(secilen4[i]);
-                string nesneAdi = Regex.Replace(Path.GetFileNameWithoutExtension(secilen4[i]), @"\s*\(.*?\)", "").ToLower();
-                checkBoxes[i].Tag = dogruNesneTurleri.Contains(nesneAdi);
+                boxes[i].Image = ByteToImage(secilen4[i].resim);
+
+                string temizAd = Temizle(secilen4[i].nesneAdi);
+                checkBoxes[i].Tag = dogruTurler.Contains(temizAd);
 
                 int index = i;
-                boxes[i].Click += (s, e) => checkBoxes[index].Checked = !checkBoxes[index].Checked;
+                boxes[i].Click += (s, e) =>
+                {
+                    checkBoxes[index].Checked = !checkBoxes[index].Checked;
+                };
             }
 
-            lblTalimat.Text = $"Lütfen {string.Join(" ve ", dogruNesneTurleri)} resimlerini işaretleyin";
+            lblTalimat.Text = $"Lütfen {string.Join(" ve ", dogruTurler)} resimlerini işaretleyin.";
         }
 
-        private void btnDevam_Click(object sender, EventArgs e)
+        private Image ByteToImage(byte[] data)
+        {
+            using (MemoryStream ms = new MemoryStream(data))
+            {
+                return Image.FromStream(ms);
+            }
+        }
+
+        private async void btnDevam_Click(object sender, EventArgs e)
         {
             CheckBox[] checkBoxes = { checkBox1, checkBox2, checkBox3, checkBox4 };
             bool dogruMu = true;
@@ -202,62 +329,242 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
             if (dogruMu)
             {
-                MessageBox.Show("Doğru seçim! Giriş başarılı.");
+                MessageBox.Show("Doğru seçim!");
+                panelResimler.Visible = false;
+                CheckBoxlariTemizle();
+                denemeresimsayisi = 0;
 
-                // Giriş yapan öğretmenin ID'sini al
-                int ogretmenID = 0;
-                using (SqlConnection conn = new SqlConnection(con))
+                using (SqlConnection con = new SqlConnection(connectionString))
                 {
-                    conn.Open();
-                    string query = "SELECT OgretmenID FROM OGRETMEN_GIRIS WHERE KullaniciAdi=@kullanici";
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    con.Open();
+
+                    using (SqlCommand cmd = new SqlCommand(query, con))
                     {
-                        cmd.Parameters.AddWithValue("@kullanici", txtKullaniciAdi.Text);
-                        ogretmenID = Convert.ToInt32(cmd.ExecuteScalar());
+                        cmd.Parameters.AddWithValue("@id", kullaniciAdi);
+
+                        using (SqlDataReader dr = cmd.ExecuteReader())
+                        {
+                            if (dr.Read()) // 🔴 BU ŞART
+                            {
+                                bool ilkGiris = dr["IlkGiris"] != DBNull.Value && Convert.ToBoolean(dr["IlkGiris"]);
+                                gonderilecekEmail = dr["Email"].ToString();
+                                gonderilecekTelefon = dr["Telefon"].ToString();
+
+
+                                if (ilkGiris)
+                                {
+                                    MessageBox.Show("Sisteme ilk kez giriş yaptığınızdan şifrenizi değiştirmelisiniz.");
+                                    panelIlkGiris.Visible = true;
+                                }
+                                else
+                                {
+                                    panelIlkGiris.Visible = false;
+                                    panelOTP.Visible = true;
+                                    MessageBox.Show("E-postanıza ve telefonunuza şifreler gönderildi!");
+                                    await OtpUretVeGonderAsync();
+                                }
+
+                            }
+                            else
+                            {
+                                MessageBox.Show("Kullanıcı bilgisi alınamadı.");
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                denemeresimsayisi++;
+
+                if (denemeresimsayisi == 3)
+                {
+                    using (SqlConnection cs = new SqlConnection(connectionString))
+                    {
+                        cs.Open();
+
+                        string sql = @"UPDATE OGRETMEN_GIRIS SET Aktif = 0 WHERE KullaniciAdi = @id";
+
+                        using (SqlCommand cd = new SqlCommand(sql, cs))
+                        {
+                            cd.Parameters.AddWithValue("@id", kullaniciAdi);
+                            cd.ExecuteNonQuery();
+                        }
+                    }
+                    MessageBox.Show("3 kez eksik veya yanlış seçim yaptığınız için hesabınız blokelendi. Lütfen adminle iletişime geçiniz!");
+                    txtKullaniciAdi.Clear();
+                    mskSifre.Clear();
+                    panelResimler.Visible = false;
+                    panelGiris.Visible = true;
+                    return;
+                }
+
+                MessageBox.Show("Yanlış veya eksik seçim,lütfen tekrar deneyin!");
+                CheckBoxlariTemizle();
+                ResimleriGetirOgretmen();
+            }
+        }
+
+        private void CheckBoxlariTemizle()
+        {
+            CheckBox[] checkBoxes = { checkBox1, checkBox2, checkBox3, checkBox4 };
+
+            foreach (CheckBox cb in checkBoxes)
+            {
+                cb.Checked = false;
+            }
+        }
+
+        private async Task OtpUretVeGonderAsync()
+        {
+            Random rnd = new Random();
+
+            emailOtp = rnd.Next(100000, 999999).ToString();
+            telefonOtp = rnd.Next(100000, 999999).ToString();
+
+            otpExpireTime = DateTime.Now.AddMinutes(5);
+
+            // 📧 MAIL OTP
+            MailHelper.maileotpGonder(
+                gonderilecekEmail,
+                emailOtp
+            );
+
+            // 📱 SMS OTP
+            await SmsHelper.smseOtpGonder(
+                gonderilecekTelefon,
+                telefonOtp
+            );
+        }
+
+        private void btnOtpDogrula_Click(object sender, EventArgs e)
+        {
+            if (DateTime.Now > otpExpireTime)
+            {
+                MessageBox.Show("Doğrulama kodlarının süresi dolmuş.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(txtEmailOtp.Text)
+                //|| string.IsNullOrWhiteSpace(txtTelefonOtp.Text)  => SONRA AYARLA
+                )
+            {
+                MessageBox.Show("Lütfen e-postanıza ve telefonunuza gelen kodları eksiksiz girin.");
+                return;
+            }
+
+            if (txtEmailOtp.Text.Trim() != emailOtp
+                // ||txtTelefonOtp.Text.Trim() != telefonOtp  => SONRA AYARLA
+                )
+            {
+                denemeotpsayisi++;
+
+                if (denemeotpsayisi == 3)
+                {
+                    using (SqlConnection cs = new SqlConnection(connectionString))
+                    {
+                        cs.Open();
+
+                        string sql = @"UPDATE OGRETMEN_GIRIS SET Aktif = 0 WHERE KullaniciAdi = @id";
+
+                        using (SqlCommand cd = new SqlCommand(sql, cs))
+                        {
+                            cd.Parameters.AddWithValue("@id", kullaniciAdi);
+                            cd.ExecuteNonQuery();
+                        }
+                    }
+                    MessageBox.Show("Doğrulama kodunu 3 kez yanlış girdiğinizden ötürü hesabınız blokelendi.Lütfen adminle iletişime geçiniz!");
+                    txtKullaniciAdi.Clear();
+                    mskSifre.Clear();
+                    panelOTP.Visible = false;
+                    panelGiris.Visible = true;
+                    return;
+                }
+                MessageBox.Show("E-posta veya telefon doğrulama kodu hatalı.");
+                return;
+            }
+
+            MessageBox.Show("Doğrulama başarılı.");
+            denemeotpsayisi = 0;
+
+            int ogretmenID;
+
+            using (SqlConnection con = new SqlConnection(connectionString))
+            {
+                con.Open();
+
+                string sql = @"SELECT OgretmenID FROM OGRETMEN_GIRIS WHERE KullaniciAdi = @id";
+
+                using (SqlCommand cmd = new SqlCommand(sql, con))
+                {
+                    cmd.Parameters.AddWithValue("@id", kullaniciAdi);
+                    object result = cmd.ExecuteScalar();
+
+                    if (result == null)
+                    {
+                        MessageBox.Show("Öğretmen bilgisi bulunamadı.");
+                        return;
+                    }
+
+                    ogretmenID = Convert.ToInt32(result);
+                }
+            }
+
+
+            FrmOgretmen frm = new FrmOgretmen(ogretmenID);
+            frm.Show();
+            this.Hide();
+
+        }
+        private async void btnSifremiUnuttum_Click(object sender, EventArgs e)
+        {
+            FrmSifremiUnuttumOgretmen frm = new FrmSifremiUnuttumOgretmen();
+            this.Hide();
+            frm.Show();
+        }
+
+        private void btnGERİ_Click(object sender, EventArgs e)
+        {
+            panelResimler.Visible = false;
+            panelGiris.Visible = true;
+            txtKullaniciAdi.Clear();
+            mskSifre.Clear();
+            CheckBoxlariTemizle();
+        }
+
+        private void panelGirisGuvenliBlokeEt(string kullaniciAdi)
+        {
+            using (SqlConnection con = new SqlConnection(connectionString))
+            {
+                con.Open();
+
+                string checkSql = "SELECT COUNT(*) FROM OGRETMEN_GIRIS WHERE KullaniciAdi = @id";
+
+                using (SqlCommand checkCmd = new SqlCommand(checkSql, con))
+                {
+                    checkCmd.Parameters.AddWithValue("@id", kullaniciAdi);
+                    int count = (int)checkCmd.ExecuteScalar();
+
+                    if (count == 0)
+                    {
+                        MessageBox.Show("Kullanıcı adı veya şifre yanlış!");
+                        return;
                     }
                 }
 
-                FrmOgretmen frm = new FrmOgretmen(ogretmenID);
-                frm.Show();
-                this.Hide();
-            }
+                string blockSql = "UPDATE OGRETMEN_GIRIS SET Aktif = 0 WHERE KullaniciAdi = @id";
 
-            else
-            {
-                MessageBox.Show("Yanlış seçim, tekrar deneyin!");
-            }
-        }
+                using (SqlCommand blockCmd = new SqlCommand(blockSql, con))
+                {
+                    blockCmd.Parameters.AddWithValue("@id", kullaniciAdi);
+                    blockCmd.ExecuteNonQuery();
+                }
 
-        private void btnGeri_Click(object sender, EventArgs e)
-        {
-            if (!girisTamamlandi)
-            {
-                Anasayfa frm = new Anasayfa();
-                this.Hide();
-                frm.Show();
-            }
-            else
-            {
-                girisTamamlandi = false;
-
-                txtKullaniciAdi.Enabled = true;
-                mskSifre.Enabled = true;
-                btnGiris.Enabled = true;
-
-                lblTalimat.Visible = false;
-                pictureBox2.Visible = false;
-                pictureBox3.Visible = false;
-                pictureBox4.Visible = false;
-                pictureBox5.Visible = false;
-                checkBox1.Visible = false;
-                checkBox2.Visible = false;
-                checkBox3.Visible = false;
-                checkBox4.Visible = false;
-                btnDevam.Visible = false;
-
-                this.Width = 816;
-                this.Height = 489;
+                MessageBox.Show("3 kez yanlış giriş denemesinden dolayı hesabınız bloke edilmiştir.Lütfen adminle iletişime geçin");
+                txtKullaniciAdi.Clear() ;
+                mskSifre.Clear();
             }
         }
+
     }
 }

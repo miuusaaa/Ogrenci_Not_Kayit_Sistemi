@@ -23,6 +23,8 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
         private void FrmSinifIslemleri_Load(object sender, EventArgs e)
         {
+            this.FormBorderStyle = FormBorderStyle.FixedSingle; //formu kullanıcı büyütmesin istiyorsan kullan.
+
             foreach (Control c in this.Controls)
             {
                 if (c is TextBox)
@@ -208,7 +210,7 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             }
 
             DialogResult dr = MessageBox.Show(
-        "Seçilen sınıflar silinecek.\n\n" +
+        "Seçilen sınıflar ve buna bağlı öğretmenler ve öğrenciler de silinecek.\n\n" +
         "Bu işlem geri alınamaz.\n\nDevam etmek istiyor musunuz?",
         "KRİTİK SİLME ONAYI",
         MessageBoxButtons.YesNo,
@@ -279,7 +281,7 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
                         // 🔹 4) Öğrenciler
                         new SqlCommand(@"
-                    DELETE FROM OGRENCILER
+                    DELETE FROM OGRENCILER 
                     WHERE OkulID=@okul AND Sinif=@sinif",
                             conn, tr)
                         {
@@ -321,7 +323,7 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                         if (kalan == 0)
                         {
                             new SqlCommand(
-                               @"UPDATE OGRETMEN_GIRIS SET Aktif = 0 WHERE OgretmenID=@id",
+                               @"DELETE FROM OGRETMEN_GIRIS WHERE OgretmenID=@id",
                                 conn, tr)
                             {
                                 Parameters = { new SqlParameter("@id", ogretmenID) }

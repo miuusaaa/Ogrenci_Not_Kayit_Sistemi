@@ -1,13 +1,12 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using BCrypt.Net;
+using Microsoft.Data.SqlClient;
 using System;
-using System.Data;
-using System.Windows.Forms;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
-using BCrypt.Net;
-
-
-
+using System.Security.Policy;
+using System.Text.RegularExpressions;
+using System.Windows.Forms;
 
 namespace Öğrenci_Not_Kayıt_Sistemi
 {
@@ -22,6 +21,9 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
         private void FrmOgretmenIslemleri_Load(object sender, EventArgs e)
         {
+            this.FormBorderStyle = FormBorderStyle.FixedSingle; //formu kullanıcı büyütmesin istiyorsan kullan.
+            txtOgretmenTelefon.MaxLength = 13;
+
             foreach (Control c in this.Controls)
             {
                 if (c is TextBox)
@@ -29,18 +31,17 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 else
                     c.TabStop = false;
             }
-
+            
             LoadOgretmenler();
-           
+            AktiflikRenkleriniUygula();
+            dgvOgretmenler.ClearSelection();
 
             dgvOgretmenler.CurrentCellDirtyStateChanged += dgvOgretmenler_CurrentCellDirtyStateChanged;
 
             foreach (DataGridViewRow row in dgvOgretmenler.Rows)
             {
                 bool aktif = row.Cells["Aktif"].Value != DBNull.Value && Convert.ToBoolean(row.Cells["Aktif"].Value);
-                row.DefaultCellStyle.BackColor = aktif ? Color.White : Color.LightGray;
             }
-
 
         }
 
@@ -64,7 +65,8 @@ namespace Öğrenci_Not_Kayıt_Sistemi
     o.Email AS 'E-posta',
     o.Telefon,
     og.KullaniciAdi AS 'Kullanıcı Adı',
-    og.Aktif AS 'Aktif'
+    ISNULL(og.Aktif, 0) AS 'Aktif'
+
 FROM OGRETMENLER o
 JOIN DERSLER d ON o.Brans = d.DersID
 JOIN OKULLAR ok ON o.CalistigiOkul = ok.OkulID
@@ -115,6 +117,7 @@ ORDER BY o.Ad, o.Soyad
                 dgvOgretmenler.Columns["Telefon"].DisplayIndex = 6;
                 dgvOgretmenler.Columns["Kullanıcı Adı"].DisplayIndex = 7;
                 dgvOgretmenler.Columns["Telefon"].DisplayIndex = 8;
+                dgvOgretmenler.Columns["Aktif"].DisplayIndex = 9;
 
 
                 // Okul comboboxları aynı kalabilir
@@ -158,10 +161,21 @@ ORDER BY o.Ad, o.Soyad
 
             }
 
+            foreach (DataGridViewColumn col in dgvOgretmenler.Columns)
+            {
+                col.ReadOnly = true;
+            }
+
+            dgvOgretmenler.Columns["Aktif"].ReadOnly = false;
+
         }
 
-        private void btnOgretmenEkle_Click(object sender, EventArgs e)
+        private async void btnOgretmenEkle_Click(object sender, EventArgs e)
         {
+
+            string plainPassword = Guid.NewGuid().ToString("N").Substring(0, 10);
+            string hash = BCrypt.Net.BCrypt.HashPassword(plainPassword);
+
             if (string.IsNullOrWhiteSpace(txtOgretmenAd.Text) ||
                 string.IsNullOrWhiteSpace(txtOgretmenSoyad.Text) ||
                 cmbOkullar.SelectedValue == null ||
@@ -177,8 +191,8 @@ ORDER BY o.Ad, o.Soyad
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(txtKullaniciAdi.Text)) 
-   
+            if (string.IsNullOrWhiteSpace(txtKullaniciAdi.Text))
+
             {
                 MessageBox.Show("Lütfen öğretmen için kullanıcı adı belirleyiniz.");
                 return;
@@ -303,58 +317,96 @@ WHERE osd.OkulID = @okul
 
                 // ÖĞRETMENİ TEK KERE EKLE
                 int ogretmenID;
+                bool dbBasarili = false;
 
-                string addQuery = @"INSERT INTO OGRETMENLER
+                using (SqlTransaction tr = conn.BeginTransaction())
+                {
+                    try
+                    {
+
+                        string addQuery = @"INSERT INTO OGRETMENLER
                             (Ad, Soyad, Email, Telefon, Brans, CalistigiOkul)
                             VALUES (@ad, @soyad, @e, @t, @b, @o)
                             SELECT SCOPE_IDENTITY()";
 
-                string addQuerygiris =
-                    @"INSERT INTO OGRETMEN_GIRIS (OgretmenID, KullaniciAdi,Aktif,Email,Telefon) VALUES (@ogretmenID,@n,1,@email,@telefon)";
+                        string addQuerygiris =
+                            @"INSERT INTO OGRETMEN_GIRIS (OgretmenID, KullaniciAdi,SifreHash,Aktif,Email,Telefon) VALUES (@ogretmenID,@n,@hash,1,@email,@telefon)";
 
-                using (SqlCommand cmdAdd = new SqlCommand(addQuery, conn))
-                {
-                    cmdAdd.Parameters.AddWithValue("@ad", ad);
-                    cmdAdd.Parameters.AddWithValue("@soyad", soyad);
-                    cmdAdd.Parameters.AddWithValue("@e", (object)email ?? DBNull.Value);
-                    cmdAdd.Parameters.AddWithValue("@t", (object)telefon ?? DBNull.Value);
-                    cmdAdd.Parameters.AddWithValue("@b", bransID);
-                    cmdAdd.Parameters.AddWithValue("@o", okulID);
-                    
-                    ogretmenID = Convert.ToInt32(cmdAdd.ExecuteScalar());
+                        using (SqlCommand cmdAdd = new SqlCommand(addQuery, conn, tr))
+                        {
+                            cmdAdd.Parameters.AddWithValue("@ad", ad);
+                            cmdAdd.Parameters.AddWithValue("@soyad", soyad);
+                            cmdAdd.Parameters.AddWithValue("@e", (object)email ?? DBNull.Value);
+                            cmdAdd.Parameters.AddWithValue("@t", (object)telefon ?? DBNull.Value);
+                            cmdAdd.Parameters.AddWithValue("@b", bransID);
+                            cmdAdd.Parameters.AddWithValue("@o", okulID);
 
-                }
+                            ogretmenID = Convert.ToInt32(cmdAdd.ExecuteScalar());
 
-                using (SqlCommand cmdAddgiris = new SqlCommand(addQuerygiris, conn))
-                {
-                    cmdAddgiris.Parameters.AddWithValue("@ogretmenID", ogretmenID);
-                    cmdAddgiris.Parameters.AddWithValue("@n", kullaniciadi);
-                    cmdAddgiris.Parameters.AddWithValue("@email", txtOgretmenEmail.Text);
-                    cmdAddgiris.Parameters.AddWithValue("@telefon", txtOgretmenTelefon.Text);
+                        }
 
-                    cmdAddgiris.ExecuteNonQuery();
-                }
+                        using (SqlCommand cmdAddgiris = new SqlCommand(addQuerygiris, conn,tr))
+                        {
+                            cmdAddgiris.Parameters.AddWithValue("@ogretmenID", ogretmenID);
+                            cmdAddgiris.Parameters.AddWithValue("@n", kullaniciadi);
+                            cmdAddgiris.Parameters.AddWithValue("@hash", hash);
+                            cmdAddgiris.Parameters.AddWithValue("@email", txtOgretmenEmail.Text);
+                            cmdAddgiris.Parameters.AddWithValue("@telefon", txtOgretmenTelefon.Text);
+
+                            cmdAddgiris.ExecuteNonQuery();
+                        }
 
 
-                // ATANABİLEN SINIFLARA EKLE
-                foreach (int sinifID in atanabilirSiniflar)
-                {
-                    string insert = @"INSERT INTO OKULLAR_SINIFLAR_DERSLER_OGRETMENLER
+                        // ATANABİLEN SINIFLARA EKLE
+                        foreach (int sinifID in atanabilirSiniflar)
+                        {
+                            string insert = @"INSERT INTO OKULLAR_SINIFLAR_DERSLER_OGRETMENLER
                               (OgretmenID, OkulID, SinifID, DersID)
                               VALUES (@oID, @okul, @sinif, @ders)";
 
-                    using (SqlCommand cmdInsert = new SqlCommand(insert, conn))
+                            using (SqlCommand cmdInsert = new SqlCommand(insert, conn,tr))
+                            {
+                                cmdInsert.Parameters.AddWithValue("@oID", ogretmenID);
+                                cmdInsert.Parameters.AddWithValue("@okul", okulID);
+                                cmdInsert.Parameters.AddWithValue("@sinif", sinifID);
+                                cmdInsert.Parameters.AddWithValue("@ders", bransID);
+                                cmdInsert.ExecuteNonQuery();
+                            }
+                        }
+                        tr.Commit();
+                        dbBasarili = true;
+                    }
+                    catch (Exception ex)
                     {
-                        cmdInsert.Parameters.AddWithValue("@oID", ogretmenID);
-                        cmdInsert.Parameters.AddWithValue("@okul", okulID);
-                        cmdInsert.Parameters.AddWithValue("@sinif", sinifID);
-                        cmdInsert.Parameters.AddWithValue("@ders", bransID);
-                        cmdInsert.ExecuteNonQuery();
+                        try { tr.Rollback(); } catch { }
+                        MessageBox.Show("Veritabanı hatası: " + ex.Message);
+                        return;
                     }
                 }
 
-                MessageBox.Show("Öğretmen başarıyla eklendi.");
-                LoadOgretmenler();
+                // 🔹 BURASI ARTIK TRANSACTION DIŞI
+                if (dbBasarili)
+                {
+                    try
+                    {
+                        MailHelper.maileIlkGirisBilgileriGonder(email, kullaniciadi, plainPassword);
+                        await SmsHelper.smseIlkGirisBilgileriGonder(telefon, kullaniciadi, plainPassword);
+
+                        MessageBox.Show("Öğretmen sisteme eklendi ve giriş bilgileri e-posta ve telefonuna gönderildi.");
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(
+                            "Öğretmen eklendi fakat bilgiler e-posta ve telefonuna gönderilemedi :\n" + ex.Message
+                        );
+                    }
+
+                    txtKullaniciAdi.Clear();
+                    txtOgretmenEmail.Clear();
+                    txtOgretmenTelefon.Clear();
+                    LoadOgretmenler();
+                    AktiflikRenkleriniUygula();
+                }
             }
         }
 
@@ -456,7 +508,7 @@ WHERE osd.OkulID = @okul
                         string.IsNullOrWhiteSpace(txtGuncelEmail.Text) ? DBNull.Value : (object)txtGuncelEmail.Text);
                     cmdUpdate.Parameters.AddWithValue("@telefon",
                         string.IsNullOrWhiteSpace(txtGuncelTelefon.Text) ? DBNull.Value : (object)txtGuncelTelefon.Text);
-                   
+
                     cmdUpdate.Parameters.AddWithValue("@id", ogretmenID);
 
                     cmdUpdate.ExecuteNonQuery();
@@ -468,7 +520,7 @@ WHERE osd.OkulID = @okul
                     cmdUpdategiris.Parameters.AddWithValue("@nick",
                         string.IsNullOrWhiteSpace(txtGuncelKullaniciAdi.Text) ? DBNull.Value : (object)txtGuncelKullaniciAdi.Text);
 
-                    
+
 
 
                     cmdUpdategiris.Parameters.AddWithValue("@id", ogretmenID);
@@ -476,7 +528,7 @@ WHERE osd.OkulID = @okul
                     cmdUpdategiris.ExecuteNonQuery();
                 }
 
-                
+
 
 
                 // 2) Yeni sınıf atamaları - sadece müsait ve duplicate olmayan sınıflar eklenir
@@ -519,14 +571,13 @@ WHERE osd.OkulID = @okul
                     }
                 }
 
-
-                   
-
             }
 
             MessageBox.Show("Öğretmen bilgileri başarıyla güncellendi.");
 
             LoadOgretmenler();
+            AktiflikRenkleriniUygula();
+
             // 🔵 GÜNCELLENEN ÖĞRETMENİ TEKRAR SEÇ
             foreach (DataGridViewRow r in dgvOgretmenler.Rows)
             {
@@ -543,65 +594,66 @@ WHERE osd.OkulID = @okul
 
         }
 
-       
+
 
         private void btnOgretmenSil_Click(object sender, EventArgs e)
         {
             if (dgvOgretmenler.SelectedRows.Count == 0) { MessageBox.Show("Lütfen sistemden silmek istediğiniz öğretmeni tablodan seçin!"); return; }
-            int ogretmenID = 0; 
-            
+            int ogretmenID = 0;
+
             if (dgvOgretmenler.SelectedRows.Count > 0)
             {
-                DataGridViewRow row = dgvOgretmenler.SelectedRows[0]; 
-                if (dgvOgretmenler.Columns.Contains("OgretmenID")) 
-                    ogretmenID = Convert.ToInt32(row.Cells["OgretmenID"].Value); 
-                
-                else if (dgvOgretmenler.Columns.Contains("ID")) ogretmenID = Convert.ToInt32(row.Cells["ID"].Value); 
-                
-                 else return; // ID yoksa işlemi durdur
-                                                                                                                                                                                                                                                                                                        
+                DataGridViewRow row = dgvOgretmenler.SelectedRows[0];
+                if (dgvOgretmenler.Columns.Contains("OgretmenID"))
+                    ogretmenID = Convert.ToInt32(row.Cells["OgretmenID"].Value);
+
+                else if (dgvOgretmenler.Columns.Contains("ID")) ogretmenID = Convert.ToInt32(row.Cells["ID"].Value);
+
+                else return; // ID yoksa işlemi durdur
+
             }
-            
-            DialogResult result = MessageBox.Show( "Seçtiğiniz öğretmeni silmek istediğinize emin misiniz?", "Confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Question); 
-            
-            if (result != DialogResult.Yes) return; 
-            
-            using (SqlConnection connection = new SqlConnection(conString)) 
-            { 
-                      connection.Open(); 
-                      string deleteOS = "DELETE FROM OKULLAR_SINIFLAR_DERSLER_OGRETMENLER WHERE OgretmenID=@ogretmenID"; 
-                      string deletegiris = "DELETE FROM OGRETMEN_GIRIS WHERE OgretmenID=@ogretmenID";
-                      string deleteNotlar = "DELETE FROM NOTLAR WHERE OgretmenID=@ogretmenID";
-                      string deleteSQL = "DELETE FROM OGRETMENLER WHERE OgretmenID=@ogretmenID"; 
-                      
-                     using (SqlCommand komut = new SqlCommand(deleteOS, connection)) 
-                     { 
-                          komut.Parameters.AddWithValue("@ogretmenID", ogretmenID); 
-                          komut.ExecuteNonQuery(); 
-                     } 
-                
-                     using (SqlCommand komut = new SqlCommand(deletegiris, connection)) 
-                     { 
-                          komut.Parameters.AddWithValue("@ogretmenID", ogretmenID); 
-                          komut.ExecuteNonQuery(); 
-                     }  
-                      
-                     using (SqlCommand komut = new SqlCommand(deleteNotlar, connection)) 
-                     { 
-                          komut.Parameters.AddWithValue("@ogretmenID", ogretmenID); 
-                          komut.ExecuteNonQuery(); 
-                     }  
-                
-                     using (SqlCommand komut = new SqlCommand(deleteSQL, connection)) 
-                     { 
-                         komut.Parameters.AddWithValue("@ogretmenID", ogretmenID); 
-                         komut.ExecuteNonQuery(); 
-                     } 
-            } 
-            
-            MessageBox.Show("Öğretmen sistemden başarıyla silindi."); 
-            LoadOgretmenler(); 
-        } 
+
+            DialogResult result = MessageBox.Show("Seçtiğiniz öğretmeni silmek istediğinize emin misiniz?", "Confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (result != DialogResult.Yes) return;
+
+            using (SqlConnection connection = new SqlConnection(conString))
+            {
+                connection.Open();
+                string deleteOS = "DELETE FROM OKULLAR_SINIFLAR_DERSLER_OGRETMENLER WHERE OgretmenID=@ogretmenID";
+                string deletegiris = "DELETE FROM OGRETMEN_GIRIS WHERE OgretmenID=@ogretmenID";
+                string deleteNotlar = "DELETE FROM NOTLAR WHERE OgretmenID=@ogretmenID";
+                string deleteSQL = "DELETE FROM OGRETMENLER WHERE OgretmenID=@ogretmenID";
+
+                using (SqlCommand komut = new SqlCommand(deleteOS, connection))
+                {
+                    komut.Parameters.AddWithValue("@ogretmenID", ogretmenID);
+                    komut.ExecuteNonQuery();
+                }
+
+                using (SqlCommand komut = new SqlCommand(deletegiris, connection))
+                {
+                    komut.Parameters.AddWithValue("@ogretmenID", ogretmenID);
+                    komut.ExecuteNonQuery();
+                }
+
+                using (SqlCommand komut = new SqlCommand(deleteNotlar, connection))
+                {
+                    komut.Parameters.AddWithValue("@ogretmenID", ogretmenID);
+                    komut.ExecuteNonQuery();
+                }
+
+                using (SqlCommand komut = new SqlCommand(deleteSQL, connection))
+                {
+                    komut.Parameters.AddWithValue("@ogretmenID", ogretmenID);
+                    komut.ExecuteNonQuery();
+                }
+            }
+
+            MessageBox.Show("Öğretmen sistemden başarıyla silindi.");
+            LoadOgretmenler();
+            AktiflikRenkleriniUygula();
+        }
 
         private void LoadSiniflarForCheckedList()
         {
@@ -705,10 +757,6 @@ WHERE osd.OkulID = @okul
             clbGuncelSiniflar.ItemCheck += clbGuncelSiniflar_ItemCheck;
         }
 
-
-
-
-
         private void dgvOgretmenler_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
@@ -736,7 +784,7 @@ WHERE osd.OkulID = @okul
 
         }
 
-        
+
 
         private void clbGuncelSiniflar_ItemCheck(object sender, ItemCheckEventArgs e)
         {
@@ -782,8 +830,11 @@ WHERE osd.SinifID=@sinifID
         // Telefon alanı sadece rakam ve max 13 karakter
         private void txtOgretmenTelefon_KeyPress(object sender, KeyPressEventArgs e)
         {
-            if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar)) e.Handled = true;
-            if (txtOgretmenTelefon.Text.Length >= 13) e.Handled = true;
+            if (!char.IsDigit(e.KeyChar) && e.KeyChar != '\b' && e.KeyChar != '+')
+                e.Handled = true;
+
+            if (txtOgretmenTelefon.Text.Length >= 13 && e.KeyChar != '\b')
+                e.Handled = true;
         }
 
         private void txtGuncelTelefon_KeyPress(object sender, KeyPressEventArgs e)
@@ -851,7 +902,7 @@ WHERE osd.SinifID=@sinifID
                 cmbGuncelBranslar.DataSource = null;
                 return;
             }
-           
+
 
             int okulID = Convert.ToInt32(cmbGuncelOkullar.SelectedValue);
 
@@ -862,7 +913,7 @@ WHERE osd.SinifID=@sinifID
                        FROM DERSLER d
                        JOIN OKULLAR_SINIFLAR_DERSLER osd ON osd.DersID = d.DersID
                        WHERE osd.OkulID = @okulID";
-                
+
                 using (SqlDataAdapter da = new SqlDataAdapter(sql, conn))
                 {
                     da.SelectCommand.Parameters.AddWithValue("@okulID", okulID);
@@ -1003,7 +1054,7 @@ ORDER BY o.Ad, o.Soyad";
                     da.Fill(dt);
 
                     dgvOgretmenler.DataSource = null;
-                   
+
                     dgvOgretmenler.DataSource = dt;
 
                     dgvOgretmenler.Columns["OgretmenID"].Visible = false;
@@ -1016,15 +1067,11 @@ ORDER BY o.Ad, o.Soyad";
             foreach (DataGridViewRow row in dgvOgretmenler.Rows)
             {
                 row.Cells["Aktif"].Tag = row.Cells["Aktif"].Value;
-            }
-
-
-            foreach (DataGridViewRow row in dgvOgretmenler.Rows)
-            {
                 bool aktif = Convert.ToBoolean(row.Cells["Aktif"].Value);
                 row.DefaultCellStyle.BackColor = aktif ? Color.White : Color.LightGray;
             }
 
+            AktiflikRenkleriniUygula();
         }
 
         private void dgvOgretmenler_CurrentCellDirtyStateChanged(object sender, EventArgs e)
@@ -1035,28 +1082,38 @@ ORDER BY o.Ad, o.Soyad";
 
         private void btnAktiflikKaydet_Click(object sender, EventArgs e)
         {
+            DialogResult onay = MessageBox.Show(
+                    "Aktif/Pasif değişiklikleri kaydedilsin mi?",
+                    "Onay",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+            if (onay != DialogResult.Yes)
+            {
+                return;
+            }
+
             using SqlConnection con = new SqlConnection(conString);
+
             con.Open();
             SqlTransaction tr = con.BeginTransaction();
 
             try
             {
+                bool degisiklikVar = false;
+
                 foreach (DataGridViewRow row in dgvOgretmenler.Rows)
                 {
-                    bool eski = Convert.ToBoolean(row.Cells["Aktif"].Tag);
-                    bool yeni = Convert.ToBoolean(row.Cells["Aktif"].Value);
+                    bool eski = row.Cells["Aktif"].Tag != null
+                    && Convert.ToBoolean(row.Cells["Aktif"].Tag);
+
+                    bool yeni = row.Cells["Aktif"].Value != DBNull.Value
+                                && Convert.ToBoolean(row.Cells["Aktif"].Value);
+
 
                     if (eski != yeni)
                     {
-
-                        DialogResult aktifOnay = MessageBox.Show(
-    "Aktif/Pasif değişiklikleri kaydedilsin mi ?",
-    "Onay",
-    MessageBoxButtons.YesNo,
-    MessageBoxIcon.Question
-);
-
-                        if (aktifOnay != DialogResult.Yes) return;
+                        degisiklikVar = true;
 
                         SqlCommand cmd = new SqlCommand(
                             "UPDATE OGRETMEN_GIRIS SET Aktif=@a WHERE OgretmenID=@id",
@@ -1068,14 +1125,80 @@ ORDER BY o.Ad, o.Soyad";
                     }
                 }
 
+                if (!degisiklikVar)
+                {
+                    MessageBox.Show("Herhangi bir aktiflik değişimi yapılmadı.");
+                    tr.Rollback();
+                    return;
+                }
+
+                
+
                 tr.Commit();
                 MessageBox.Show("Aktif/Pasif değişiklikleri kaydedildi.");
                 LoadOgretmenler();
+                AktiflikRenkleriniUygula();
             }
             catch
             {
                 tr.Rollback();
                 MessageBox.Show("Aktiflik kaydedilirken hata oluştu.");
+            }
+        }
+
+        private void AktiflikRenkleriniUygula()
+        {
+            foreach (DataGridViewRow row in dgvOgretmenler.Rows)
+            {
+                bool aktif = row.Cells["Aktif"].Value != DBNull.Value
+                             && Convert.ToBoolean(row.Cells["Aktif"].Value);
+
+                row.DefaultCellStyle.BackColor =
+                    aktif ? Color.White : Color.LightGray;
+
+                row.Cells["Aktif"].Tag = aktif;
+            }
+        }
+
+        private void txtOgretmenTelefon_Leave(object sender, EventArgs e)
+        {
+            if (!Regex.IsMatch(txtOgretmenTelefon.Text, @"^\+90\d{10}$"))
+            {
+                MessageBox.Show("Telefon numarası +905XXXXXXXXX formatında olmalıdır.");
+            }
+        }
+
+        private void txtGuncelTelefon_Leave(object sender, EventArgs e)
+        {
+
+            if (!Regex.IsMatch(txtGuncelTelefon.Text, @"^\+90\d{10}$"))
+            {
+                MessageBox.Show("Telefon numarası +905XXXXXXXXX formatında olmalıdır.");
+            }
+        }
+
+        private bool EmailGecerliMi(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            string pattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+            return Regex.IsMatch(email, pattern, RegexOptions.IgnoreCase);
+        }
+
+        private void txtOgretmenEmail_Leave(object sender, EventArgs e)
+        {
+            if (!EmailGecerliMi(txtOgretmenEmail.Text.Trim()))
+            {
+                MessageBox.Show("Geçerli bir e-posta adresi giriniz.");
+            }
+        }
+
+        private void txtGuncelEmail_Leave(object sender, EventArgs e)
+        {
+            if (!EmailGecerliMi(txtGuncelEmail.Text.Trim()))
+            {
+                MessageBox.Show("Geçerli bir e-posta adresi giriniz.");
             }
         }
     }

@@ -43,6 +43,8 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
         private void FrmOkulIslemleri_Load(object sender, EventArgs e)
         {
+            this.FormBorderStyle = FormBorderStyle.FixedSingle; //formu kullanıcı büyütmesin istiyorsan kullan.
+
             foreach (Control c in this.Controls)
             {
                 if (c is TextBox)
@@ -135,7 +137,9 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             }
 
             DialogResult result = MessageBox.Show(
-                "Seçtiğiniz okulu silmek istediğinize emin misiniz?", "Confirmation",
+                "Seçtiğiniz okulu silmek istediğinize emin misiniz?\n" +
+                "Buna bağlı sınıflar,öğretmenler ve öğrenciler de silinecek.\n" +
+                "Bu işlem geri alınamaz.", "Confirmation",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
             if (result != DialogResult.Yes) return;
@@ -146,7 +150,8 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 string deleteOSDO = "DELETE FROM OKULLAR_SINIFLAR_DERSLER_OGRETMENLER WHERE OkulID =@okulID";
                 string deleteOSD = "DELETE FROM OKULLAR_SINIFLAR_DERSLER WHERE OkulID =@okulID";
                 string deleteOS = "DELETE FROM OKULLAR_SINIFLAR WHERE OkulID =@okulID";
-                string deleteOgretmen = "DELETE FROM OGRETMENLER WHERE CalistigiOkul =@okulID";
+                string deleteOgretmenGiris = "DELETE og FROM OGRETMEN_GIRIS AS og INNER JOIN OGRETMENLER AS o ON og.OgretmenID = o.OgretmenID WHERE o.CalistigiOkul = @okulID";
+                string deleteOgretmen = "DELETE FROM OGRETMENLER WHERE CalistigiOkul = @okulID";
                 string deleteOgrenci = "DELETE FROM OGRENCILER WHERE OkulID =@okulID";
                 string deleteOkul = "DELETE FROM OKULLAR WHERE OkulID = @okulID";
 
@@ -164,6 +169,12 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 }
 
                 using (SqlCommand komut = new SqlCommand(deleteOS, connection))
+                {
+                    komut.Parameters.AddWithValue("@okulID", okulID);
+                    komut.ExecuteNonQuery();
+                }
+
+                using (SqlCommand komut = new SqlCommand(deleteOgretmenGiris, connection))
                 {
                     komut.Parameters.AddWithValue("@okulID", okulID);
                     komut.ExecuteNonQuery();

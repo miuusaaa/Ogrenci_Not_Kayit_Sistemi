@@ -3,6 +3,7 @@ using System;
 using System.Data;
 using System.Drawing;
 using System.Net;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using static System.ComponentModel.Design.ObjectSelectorEditor;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.ListView;
@@ -13,43 +14,56 @@ namespace Öğrenci_Not_Kayıt_Sistemi
     public partial class FrmOgrenciIslemleri : Form
     {
         private string conString = "Server=AKALI;Database=OgrenciNotKayitSistemi;Trusted_Connection=True;TrustServerCertificate=True;";
+        byte[] yeniOgrenciFoto = null;
 
         public FrmOgrenciIslemleri()
         {
             InitializeComponent();
         }
-
-
-        private void FrmOgrenciListe_Load(object sender, EventArgs e)
-        {
-            foreach (Control c in this.Controls)
-            {
-                if (c is TextBox)
-                    c.TabStop = true;
-                else
-                    c.TabStop = false;
-            }
-
-            LoadOgrenciler();
-            pbFotograf.Image = Properties.Resources.no_photo; // Resources içinde default resim
-            dgvOgrenciler.ClearSelection();
-        }
-
         private void LoadOgrenciler()
         {
             using (SqlConnection conn = new SqlConnection(conString))
             {
                 conn.Open();
-                string sql = "SELECT OgrNo as 'Numarası',Ad as 'Adı',Soyad as 'Soyadı',DogumTarihi as 'Doğum Tarihi',Tc,o.OkulID,OkulAd as 'Okulu',Sinif,SinifAd as 'Sınıfı',Email as 'E-posta',Telefon " +
-                               " FROM OGRENCILER o" +
-                               " JOIN OKULLAR_SINIFLAR os on os.OkulID = o.OkulID and os.SinifID = o.Sinif" +
-                               " JOIN OKULLAR ok on ok.OkulID = os.OkulID" +
-                               " JOIN SINIFLAR s on s.SinifID = os.SinifID" +
-                               " ORDER BY o.OgrNo";
+                string sql = @"SELECT
+    o.OgrNo as 'Numarası',
+    o.Ad as 'Adı',
+    o.Soyad as 'Soyadı',
+    o.DogumTarihi as 'Doğum Tarihi',
+    o.Tc,
+    o.OkulID,
+    ok.OkulAd as 'Okulu',
+    o.Sinif,
+    s.SinifAd as 'Sınıfı',
+    o.Email as 'E-posta',
+    o.Telefon,
+    ISNULL(g.Aktiflik, 0) AS 'Aktiflik'
+FROM OGRENCILER o
+JOIN OGRGIRISBILGILERI g ON g.tckimlikno = o.TC
+LEFT JOIN OKULLAR_SINIFLAR os on os.OkulID = o.OkulID and os.SinifID = o.Sinif
+LEFT JOIN OKULLAR ok on ok.OkulID = os.OkulID
+LEFT JOIN SINIFLAR s on s.SinifID = os.SinifID
+ORDER BY o.OgrNo";
+
                 SqlDataAdapter da = new SqlDataAdapter(sql, conn);
                 DataTable dt = new DataTable();
                 da.Fill(dt);
                 dgvOgrenciler.DataSource = dt;
+
+                if (!(dgvOgrenciler.Columns["Aktiflik"] is DataGridViewCheckBoxColumn))
+                {
+                    DataGridViewCheckBoxColumn chk = new DataGridViewCheckBoxColumn();   //aktiflik tiki değişmiyorsa grid readonly = true dur . onu false yap düzelcek.editonenter ayarıyla alakalı değil
+                    chk.Name = "Aktiflik";                                               // nitekim dgvogretmenler de ediotonkeystrokeorf2 ile çalışıodu.
+                    chk.HeaderText = "Aktiflik";
+                    chk.DataPropertyName = "Aktiflik";
+                    chk.TrueValue = true;
+                    chk.FalseValue = false;
+
+                    dgvOgrenciler.Columns.Remove("Aktiflik");
+                    dgvOgrenciler.Columns.Add(chk);
+                }
+
+                dgvOgrenciler.Columns["Aktiflik"].DisplayIndex = 11;
 
                 dgvOgrenciler.Columns["Sinif"].Visible = false;
                 dgvOgrenciler.Columns["OkulID"].Visible = false;
@@ -71,6 +85,19 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 cmbGuncelOkul.DataSource = dtGuncelOkul;
 
             }
+            foreach (DataGridViewRow row in dgvOgrenciler.Rows)
+            {
+                row.Cells["Aktiflik"].Tag = row.Cells["Aktiflik"].Value;
+
+            }
+
+            dgvOgrenciler.ReadOnly = false; // ⚠️ Burası önemli: grid false olacak
+            foreach (DataGridViewColumn col in dgvOgrenciler.Columns)
+            {
+                col.ReadOnly = true;
+            }
+
+            dgvOgrenciler.Columns["Aktiflik"].ReadOnly = false;
         }
 
         private void LoadOkullar()
@@ -94,9 +121,21 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
         private bool kontrol()
         {
-            if (string.IsNullOrWhiteSpace(txtOgrNo.Text))
+            if (string.IsNullOrWhiteSpace(txtTC.Text))
             {
-                MessageBox.Show("Öğrenci numarası boş olamaz.");
+                MessageBox.Show("Öğrenci TC'si boş olamaz.");
+                return false;
+            }
+
+            //if (!ValidateTCKimlik(txtTC.Text))
+            //{
+            //    MessageBox.Show("Geçersiz TC NO !");
+            //    return false;
+            //}
+
+            if (!txtTC.Text.All(char.IsDigit))
+            {
+                MessageBox.Show("TC numarası sadece rakamlardan oluşmalı !");
                 return false;
             }
 
@@ -112,11 +151,6 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(txtTC.Text))
-            {
-                MessageBox.Show("Öğrenci TC'si boş olamaz.");
-                return false;
-            }
 
             if (string.IsNullOrWhiteSpace(cmbSinif.Text))
             {
@@ -124,15 +158,30 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 return false;
             }
 
+            if (string.IsNullOrWhiteSpace(txtOgrNo.Text))
+            {
+                MessageBox.Show("Öğrenci numarası boş olamaz.");
+                return false;
+            }
+
+
             if (!txtOgrNo.Text.All(char.IsDigit))
             {
                 MessageBox.Show("Öğrenci numarası sadece rakamlardan oluşmalı !");
                 return false;
             }
 
-            if (!txtTC.Text.All(char.IsDigit))
+
+            // FOTOĞRAF ZORUNLU KONTROLÜ
+            if (yeniOgrenciFoto == null)
             {
-                MessageBox.Show("TC numarası sadece rakamlardan oluşmalı !");
+                MessageBox.Show("Öğrenci eklemek için fotoğraf yüklemelisiniz!");
+                return false;
+            }
+
+            if (FotografBaskaOgrencideVarMi(yeniOgrenciFoto))
+            {
+                MessageBox.Show("Bu fotoğraf sistemde başka bir öğrenciye ait. Kayıt yapılamaz.");
                 return false;
             }
 
@@ -141,7 +190,6 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 MessageBox.Show("Bu okulda sınıf bulunmadığı için öğrenci eklenemez.");
                 return false;
             }
-
 
             return true; // tüm kontroller geçti
         }
@@ -208,12 +256,9 @@ namespace Öğrenci_Not_Kayıt_Sistemi
         }
         private void btnEkle_Click(object sender, EventArgs e)
         {
+
             if (!kontrol()) return;
-            if (!ValidateTCKimlik(txtTC.Text))
-            {
-                MessageBox.Show("Geçersiz TC NO !");
-                return;
-            }
+
             if (!benzerKayitKontrol()) return;
 
             DialogResult result = MessageBox.Show(
@@ -227,50 +272,77 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 return; // kullanıcı Hayır dedi, işlem iptal
 
             string queryAdd = "insert into OGRENCILER values (@p1,@p2,@p3,@p4,@p5,@p6,@p7,@p8,@p9)";
+            string queryFoto = "INSERT INTO FOTOGRAFLAR (TC, FotoData) VALUES (@TC, @foto)";
+            string queryGiris = "insert into OGRGIRISBILGILERI (tckimlikno,OGRNO,Aktiflik) VALUES (@tc,@no,1)";
 
             using (SqlConnection connection = new SqlConnection(conString))
             {
-                using (SqlCommand komut = new SqlCommand(queryAdd, connection))
+                connection.Open();
+
+                SqlTransaction tr = connection.BeginTransaction();
+
+                try
                 {
-                    connection.Open();
+                    SqlCommand komut1 = new SqlCommand(queryAdd, connection, tr);
+
+                    komut1.Parameters.AddWithValue("@p1", txtTC.Text);
+
+                    komut1.Parameters.AddWithValue("@p2", txtOgrNo.Text);
+
+
+                    komut1.Parameters.AddWithValue("@p3", txtOgrAd.Text);
+
+
+                    komut1.Parameters.AddWithValue("@p4", txtOgrSoyad.Text);
 
 
 
-                    komut.Parameters.AddWithValue("@p1", txtTC.Text);
+                    komut1.Parameters.AddWithValue("@p5", DateTime.Parse(dtpDogumTarihi.Text));
 
-                    komut.Parameters.AddWithValue("@p2", txtOgrNo.Text);
+                    komut1.Parameters.AddWithValue("@p6", cmbOkulu.SelectedValue);
 
-
-                    komut.Parameters.AddWithValue("@p3", txtOgrAd.Text);
-
-
-                    komut.Parameters.AddWithValue("@p4", txtOgrSoyad.Text);
-
-
-
-                    komut.Parameters.AddWithValue("@p5", DateTime.Parse(dtpDogumTarihi.Text));
-
-                    komut.Parameters.AddWithValue("@p6", cmbOkulu.SelectedValue);
-
-                    komut.Parameters.AddWithValue("@p7", cmbSinif.SelectedValue);
-
+                    komut1.Parameters.AddWithValue("@p7", cmbSinif.SelectedValue);
 
 
                     if (string.IsNullOrWhiteSpace(txtEmail.Text))
-                        komut.Parameters.AddWithValue("@p8", DBNull.Value);
+                        komut1.Parameters.AddWithValue("@p8", DBNull.Value);
                     else
-                        komut.Parameters.AddWithValue("@p8", txtEmail.Text);
+                        komut1.Parameters.AddWithValue("@p8", txtEmail.Text);
 
                     if (string.IsNullOrWhiteSpace(txtTelefon.Text))
-                        komut.Parameters.AddWithValue("@p9", DBNull.Value);
+                        komut1.Parameters.AddWithValue("@p9", DBNull.Value);
                     else
-                        komut.Parameters.AddWithValue("@p9", txtTelefon.Text);
+                        komut1.Parameters.AddWithValue("@p9", txtTelefon.Text);
 
-                    komut.ExecuteNonQuery();
+                    komut1.ExecuteNonQuery();
+
+
+                    SqlCommand komut2 = new SqlCommand(queryGiris, connection, tr);
+
+                    komut2.Parameters.AddWithValue("@tc", txtTC.Text);
+
+                    komut2.Parameters.AddWithValue("@no", txtOgrNo.Text);
+
+                    komut2.ExecuteNonQuery();
+
+                    SqlCommand komutFoto = new SqlCommand(queryFoto, connection, tr);
+                    komutFoto.Parameters.AddWithValue("@TC", txtTC.Text);
+                    komutFoto.Parameters.AddWithValue("@foto", yeniOgrenciFoto);
+                    komutFoto.ExecuteNonQuery();
+
+                    tr.Commit();
+                }
+                catch (SqlException ex)
+                {
+                    tr.Rollback();
+                    MessageBox.Show("Kayıt sırasında hata oluştu. " + ex.Message);
+                    return;
                 }
 
                 MessageBox.Show("Öğrenci ekleme başarılı.");
                 LoadOgrenciler();
+                dgvOgrenciler.ClearSelection();
+                dgvOgrenciler.CurrentCell = null;
 
                 foreach (DataGridViewRow row in dgvOgrenciler.Rows)
                 {
@@ -284,6 +356,8 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                     }
                 }
             }
+            yeniOgrenciFoto = null;
+            pbFotograf.Image = Properties.Resources.no_photo;
 
         }
 
@@ -291,7 +365,7 @@ namespace Öğrenci_Not_Kayıt_Sistemi
         {
             if (dgvOgrenciler.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Lütfen güncellemek istediğniniz öğrencyi tablodan seçin!");
+                MessageBox.Show("Lütfen silmek istediğniniz öğrencyi tablodan seçin!");
                 return;
             }
 
@@ -312,13 +386,21 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             if (result != DialogResult.Yes)
                 return; // kullanıcı Hayır dedi, işlem iptal
 
+            string queryGiris = "delete from OGRGIRISBILGILERI where tckimlikno = @tc";
             string queryNotlar = "delete from NOTLAR where OgrenciTC = @ogrtc";
-            string queryDelete = "delete from OGRENCILER where TC = @TC";
             string queryFotoDelete = "delete from FOTOGRAFLAR where TC = @TC";
+            string queryDelete = "delete from OGRENCILER where TC = @TC";
 
             using (SqlConnection connection = new SqlConnection(conString))
             {
                 connection.Open();
+
+                using (SqlCommand komut = new SqlCommand(queryGiris, connection))
+                {
+
+                    komut.Parameters.AddWithValue("@tc", tc);
+                    komut.ExecuteNonQuery();
+                }
 
                 using (SqlCommand komut = new SqlCommand(queryNotlar, connection))
                 {
@@ -341,8 +423,10 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                     komut.Parameters.AddWithValue("@TC", tc);
                     komut.ExecuteNonQuery();
                 }
+
                 MessageBox.Show("Öğrenci silme işlemi başarılı.");
                 LoadOgrenciler();
+                dgvOgrenciler.ClearSelection();
 
                 int rowCount = dgvOgrenciler.Rows.Count;
                 if (rowCount > 0)
@@ -357,7 +441,6 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 {
                     // Tablo boşsa textboxları temizle
                     txtGuncelOgrNo.Clear();
-                    txtGuncelSifre.Clear();
                     txtGuncelEmail.Clear();
                     txtGuncelTelefon.Clear();
                     pbFotograf.Image = Properties.Resources.no_photo;
@@ -459,6 +542,7 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
 
             string queryUpdate = @"update OGRENCILER set OgrNo =  @ogrno , OkulID = @okul, Sinif = @sinif , Email = @email , Telefon = @telefon  where  TC = @TC";
+            string queryGiris = "@update OGRGIRISBILGILERI set OGRNO = @ogrno , tckimlikno = @tc";
 
             using (SqlConnection connection = new SqlConnection(conString))
             {
@@ -494,8 +578,17 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
                 }
 
+                using (SqlCommand komut = new SqlCommand(queryGiris, connection))
+                {
+                    komut.Parameters.AddWithValue("@ogrno", ogrno);
+                    komut.Parameters.AddWithValue("@tc", tc);
+
+                }
                 MessageBox.Show("Öğrenci güncelleme başarılı.");
                 LoadOkullar();
+                LoadOgrenciler();
+                AktiflikRenkleriniUygula();
+                dgvOgrenciler.ClearSelection();
             }
         }
 
@@ -504,8 +597,8 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             using (SqlConnection con = new SqlConnection(conString))
             {
                 con.Open();
-                string query = "SELECT o.OkulID,Sinif,OgrNo as 'Numarası',Ad as 'Adı',Soyad as 'Soyadı',DogumTarihi as 'Doğum Tarihi',Tc,OkulAd as 'Okulu',SinifAd as 'Sınıfı',Email as 'E-posta',Telefon " +
-                               "FROM OGRENCILER o JOIN OKULLAR_SINIFLAR os on os.SinifID = o.Sinif and os.OkulID = o.OkulID join SINIFLAR s on os.SinifID = s.SinifID join OKULLAR ok on ok.OkulID = os.OkulID WHERE OgrNo LIKE @p1 or Ad LIKE @p1 or Soyad LIKE @p1 or TC LIKE @p1 OR REPLACE(CONVERT(VARCHAR(10),DogumTarihi, 104), '.', '')  LIKE @p1 OR CONVERT(VARCHAR(10), DogumTarihi, 104) LIKE @p1 or SinifAd LIKE @p1 OR Email like @p1 or Telefon like @p1 or OkulAd like @p1";
+                string query = "SELECT o.OkulID,Sinif,OgrNo as 'Numarası',Ad as 'Adı',Soyad as 'Soyadı',DogumTarihi as 'Doğum Tarihi',Tc,OkulAd as 'Okulu',SinifAd as 'Sınıfı',Email as 'E-posta',Telefon,ISNULL(g.Aktif,0) as Aktiflik" +
+                               "FROM OGRENCILER o JOIN OGRGIRISBILGILERI g ON g.tckimlikno = o.TC JOIN OKULLAR_SINIFLAR os on os.SinifID = o.Sinif and os.OkulID = o.OkulID join SINIFLAR s on os.SinifID = s.SinifID join OKULLAR ok on ok.OkulID = os.OkulID WHERE OgrNo LIKE @p1 or Ad LIKE @p1 or Soyad LIKE @p1 or TC LIKE @p1 OR REPLACE(CONVERT(VARCHAR(10),DogumTarihi, 104), '.', '')  LIKE @p1 OR CONVERT(VARCHAR(10), DogumTarihi, 104) LIKE @p1 or SinifAd LIKE @p1 OR Email like @p1 or Telefon like @p1 or OkulAd like @p1";
                 using (SqlCommand cmd = new SqlCommand(query, con))
                 {
                     cmd.Parameters.AddWithValue("@p1", "%" + txtFilter.Text + "%");
@@ -520,6 +613,12 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                     dgvOgrenciler.Columns["Sinif"].Visible = false;
 
                 }
+            }
+
+            foreach (DataGridViewRow row in dgvOgrenciler.Rows)
+            {
+                row.Cells["Aktiflik"].Tag = row.Cells["Aktiflik"].Value;
+                bool aktif = Convert.ToBoolean(row.Cells["Aktiflik"].Value);
             }
         }
 
@@ -869,8 +968,250 @@ MessageBoxIcon.Question
 
         private void btnAktiflikKaydet_Click(object sender, EventArgs e)
         {
+            using SqlConnection con = new SqlConnection(conString);
+            con.Open();
+            SqlTransaction tr = con.BeginTransaction();
+
+            try
+            {
+                bool degisiklikVar = false;
+
+                DialogResult onay = MessageBox.Show(
+                    "Aktif/Pasif değişiklikleri kaydedilsin mi?",
+                    "Onay",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (onay != DialogResult.Yes)
+                {
+                    tr.Rollback();
+                    return;
+                }
+
+                foreach (DataGridViewRow row in dgvOgrenciler.Rows)
+                {
+                    bool eski = row.Cells["Aktiflik"].Tag != null
+                                && Convert.ToBoolean(row.Cells["Aktiflik"].Tag);
+
+                    bool yeni = row.Cells["Aktiflik"].Value != DBNull.Value
+                                && Convert.ToBoolean(row.Cells["Aktiflik"].Value);
+
+                    if (eski != yeni)
+                    {
+                        degisiklikVar = true;
+
+                        using SqlCommand cmd = new SqlCommand(
+                            "UPDATE OGRGIRISBILGILERI SET Aktiflik = @a WHERE tckimlikno = @tc",
+                            con, tr);
+
+                        cmd.Parameters.AddWithValue("@a", yeni);
+                        cmd.Parameters.AddWithValue("@tc", row.Cells["Tc"].Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                if (!degisiklikVar)
+                {
+                    MessageBox.Show("Herhangi bir aktiflik değişimi yapılmadı.");
+                    tr.Rollback();
+                    return;
+                }
+
+                tr.Commit();
+                MessageBox.Show("Aktiflik değişiklikleri başarıyla kaydedildi.");
+                LoadOgrenciler();
+                AktiflikRenkleriniUygula();
+            }
+            catch (Exception ex)
+            {
+                tr.Rollback();
+                MessageBox.Show("Aktiflik kaydedilirken hata oluştu:\n" + ex.Message);
+            }
+        }
+
+
+        private void dgvOgrenciler_CurrentCellDirtyStateChanged(object sender, EventArgs e)
+        {
+            if (dgvOgrenciler.IsCurrentCellDirty)
+                dgvOgrenciler.CommitEdit(DataGridViewDataErrorContexts.Commit);
+        }
+
+        private void FrmOgrenciIslemleri_Load(object sender, EventArgs e)
+        {
+            this.FormBorderStyle = FormBorderStyle.FixedSingle; //formu kullanıcı büyütmesin istiyorsan kullan.
+
+            foreach (Control c in this.Controls)
+            {
+                if (c is TextBox)
+                    c.TabStop = true;
+                else
+                    c.TabStop = false;
+            }
+
+            LoadOgrenciler();
+            AktiflikRenkleriniUygula();
+
+            dgvOgrenciler.CurrentCellDirtyStateChanged += dgvOgrenciler_CurrentCellDirtyStateChanged;
+
+
+            foreach (DataGridViewRow row in dgvOgrenciler.Rows)
+            {
+                bool aktif = row.Cells["Aktiflik"].Value != DBNull.Value && Convert.ToBoolean(row.Cells["Aktiflik"].Value);
+            }
+
+            pbFotograf.Image = Properties.Resources.no_photo; // Resources içinde default resim
+            dgvOgrenciler.ClearSelection();
+
 
         }
+
+        private void AktiflikRenkleriniUygula()
+        {
+            foreach (DataGridViewRow row in dgvOgrenciler.Rows)
+            {
+                bool aktif = row.Cells["Aktiflik"].Value != DBNull.Value
+                             && Convert.ToBoolean(row.Cells["Aktiflik"].Value);
+
+                row.DefaultCellStyle.BackColor =
+                    aktif ? Color.White : Color.Pink;
+
+                row.Cells["Aktiflik"].Tag = aktif;
+            }
+        }
+
+        private bool EmailGecerliMi(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            string pattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+            return Regex.IsMatch(email, pattern, RegexOptions.IgnoreCase);
+        }
+
+
+        private void txtEmail_Leave(object sender, EventArgs e)
+        {
+            if (!EmailGecerliMi(txtEmail.Text.Trim()))
+            {
+                MessageBox.Show("Geçerli bir e-posta adresi giriniz.");
+                return;
+            }
+        }
+
+        private void txtGuncelEmail_Leave(object sender, EventArgs e)
+        {
+            if (!EmailGecerliMi(txtEmail.Text.Trim()))
+            {
+                MessageBox.Show("Geçerli bir e-posta adresi giriniz.");
+                return;
+            }
+        }
+
+        private void txtTelefon_Leave(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrWhiteSpace(txtTelefon.Text))
+            {
+                if (!TelefonGecerliMi(txtTelefon.Text.Trim()))
+                {
+                    MessageBox.Show("Geçerli bir telefon numarası giriniz. (Örn: 05xxxxxxxxx)");
+                    txtTelefon.Focus();
+                }
+            }
+        }
+
+        private void txtGuncelTelefon_Leave(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrWhiteSpace(txtGuncelTelefon.Text))
+            {
+                if (!TelefonGecerliMi(txtGuncelTelefon.Text.Trim()))
+                {
+                    MessageBox.Show("Geçerli bir telefon numarası giriniz. (Örn: 05xxxxxxxxx)");
+                    txtTelefon.Focus();
+                }
+            }
+        }
+
+        private void btnFotoEkle_Click(object sender, EventArgs e)
+        {
+            dgvOgrenciler.ClearSelection();
+
+            using (OpenFileDialog ofd = new OpenFileDialog())
+            {
+                ofd.Title = "Öğrenci Fotoğrafı Seç";
+                ofd.Filter = "Resim Dosyaları|*.jpg;*.jpeg;*.png;*.bmp";
+
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    Image img = Image.FromFile(ofd.FileName);
+                    byte[] fotoByte = ImageToByte(img);
+
+                    // 🔴 BENZER FOTO KONTROLÜ
+                    if (FotografBaskaOgrencideVarMi(fotoByte))
+                    {
+                        MessageBox.Show("Bu fotoğraf başka bir öğrenciye ait! Lütfen farklı bir fotoğraf seçiniz.");
+                        return;
+                    }
+
+                    // sorun yoksa ata
+                    yeniOgrenciFoto = fotoByte;
+                    pbFotograf.Image = img;
+                    MessageBox.Show("Fotoğraf eklendi.");
+
+                }
+            }
+        }
+
+        private void btnEklenenFotoyuSil_Click(object sender, EventArgs e)
+        {
+            if (yeniOgrenciFoto == null)
+            {
+                MessageBox.Show("Fotoğraf zaten seçilmedi!");
+                return;
+            }
+            dgvOgrenciler.ClearSelection();
+
+            yeniOgrenciFoto = null;
+            pbFotograf.Image = Properties.Resources.no_photo;
+            MessageBox.Show("Fotoğraf kaldırıldı.");
+
+        }
+
+        private bool TelefonGecerliMi(string telefon)
+        {
+            if (string.IsNullOrWhiteSpace(telefon))
+                return false;
+
+            // Sadece rakamları al
+            telefon = Regex.Replace(telefon, @"\D", "");
+
+            // 10 veya 11 haneli (05xxxxxxxxx veya 5xxxxxxxxx)
+            if (telefon.Length == 11 && telefon.StartsWith("05"))
+                return true;
+
+            if (telefon.Length == 10 && telefon.StartsWith("5"))
+                return true;
+
+            return false;
+        }
+
+        private bool FotografBaskaOgrencideVarMi(byte[] yeniFoto)
+        {
+            using (SqlConnection conn = new SqlConnection(conString))
+            {
+                conn.Open();
+
+                string sql = "SELECT COUNT(*) FROM FOTOGRAFLAR WHERE FotoData = @foto";
+
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@foto", yeniFoto);
+                    int count = (int)cmd.ExecuteScalar();
+                    return count > 0;
+                }
+            }
+        }
+
     }
 }
-    
+
+

@@ -25,9 +25,35 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
         private void FrmAdminIslemleri_Load(object sender, EventArgs e)
         {
+            this.FormBorderStyle = FormBorderStyle.FixedSingle; //formu kullanıcı büyütmesin istiyorsan kullan.
+            dgvAdminler.ReadOnly = false;
+
+            foreach (Control c in this.Controls)
+            {
+                if (c is TextBox)
+                    c.TabStop = true;
+                else
+                    c.TabStop = false;
+            }
+
             LoadAdminler();
+            AktiflikRenkleriniUygula();
             dgvAdminler.ClearSelection();
             txtTelefon.MaxLength = 13;
+
+
+            dgvAdminler.CurrentCellDirtyStateChanged += dgvAdminler_CurrentCellDirtyStateChanged;
+
+            foreach (DataGridViewRow row in dgvAdminler.Rows)
+            {
+                bool aktif = row.Cells["Aktiflik"].Value != DBNull.Value && Convert.ToBoolean(row.Cells["Aktiflik"].Value);
+            }
+        }
+
+        private void dgvAdminler_CurrentCellDirtyStateChanged(object sender, EventArgs e)
+        {
+            if (dgvAdminler.IsCurrentCellDirty)
+                dgvAdminler.CommitEdit(DataGridViewDataErrorContexts.Commit);
         }
 
         private void LoadAdminler()
@@ -35,14 +61,41 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             using (SqlConnection con = new SqlConnection(conString))
             {
                 con.Open();
-                string sql = @"SELECT AdminID, Email, Telefon FROM ADMINGIRISBILGILERI";
+                string sql = @"SELECT AdminID, Email, Telefon, Aktiflik FROM ADMINGIRISBILGILERI";
 
                 SqlDataAdapter da = new SqlDataAdapter(sql, con);
                 dtAdminler = new DataTable();
                 da.Fill(dtAdminler);
 
                 dgvAdminler.DataSource = dtAdminler;
+
+                if (!(dgvAdminler.Columns["Aktiflik"] is DataGridViewCheckBoxColumn))
+                {
+                    DataGridViewCheckBoxColumn chk = new DataGridViewCheckBoxColumn();
+                    chk.Name = "Aktiflik";
+                    chk.HeaderText = "Aktiflik";
+                    chk.DataPropertyName = "Aktiflik";
+                    chk.TrueValue = true;
+                    chk.FalseValue = false;
+
+                    dgvAdminler.Columns.Remove("Aktiflik");
+                    dgvAdminler.Columns.Add(chk);
+                }
             }
+
+            dgvAdminler.Columns["Aktiflik"].DisplayIndex = 3;
+
+            foreach (DataGridViewRow row in dgvAdminler.Rows)
+            {
+                row.Cells["Aktiflik"].Tag = row.Cells["Aktiflik"].Value;
+            }
+
+            foreach (DataGridViewColumn col in dgvAdminler.Columns) //sadece aktiflik editable olması için bunu koy yeter başka bişeye gerek yok.
+            {
+                col.ReadOnly = true;
+            }
+
+            dgvAdminler.Columns["Aktiflik"].ReadOnly = false;
         }
 
         private void btnAdminSil_Click(object sender, EventArgs e)
@@ -53,25 +106,29 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 return;
             }
 
+            string adminID = dgvAdminler.CurrentRow.Cells["AdminID"].Value.ToString();
+            bool secilenAdminAktif = Convert.ToBoolean(dgvAdminler.CurrentRow.Cells["Aktiflik"].Value);
+
             using (SqlConnection con = new SqlConnection(conString))
             {
                 con.Open();
 
-                string sqlonly = "SELECT COUNT(*) FROM ADMINGIRISBILGILERI";
+                // Aktif admin sayısını al
+                string sqlAktifSayisi = "SELECT COUNT(*) FROM ADMINGIRISBILGILERI WHERE Aktiflik = 1";
 
-                using (SqlCommand cmd = new SqlCommand(sqlonly, con))
+                using (SqlCommand cmd = new SqlCommand(sqlAktifSayisi, con))
                 {
-                    int result = (int)cmd.ExecuteScalar();
-                    
-                    if(result == 1)
+                    int aktifAdminSayisi = (int)cmd.ExecuteScalar();
+
+                    // Eğer silinmek istenen admin aktifse ve sistemde sadece 1 aktif admin varsa
+                    if (secilenAdminAktif && aktifAdminSayisi == 1)
                     {
-                        MessageBox.Show("Sistemdeki ilk admin silinemez!");
+                        MessageBox.Show("Sistemde en az 1 aktif admin bulunmak zorundadır. Bu admin silinemez.");
                         return;
                     }
                 }
             }
 
-            string adminID = dgvAdminler.CurrentRow.Cells["AdminID"].Value.ToString();
 
             var confirm = MessageBox.Show(
                 $"{adminID} adlı admin silinsin mi?",
@@ -96,6 +153,7 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             MessageBox.Show("Admin sistemden başarıyla silindi.");
 
             LoadAdminler();
+            AktiflikRenkleriniUygula();
         }
 
         private async void btnAdminEkle_Click(object sender, EventArgs e)
@@ -167,8 +225,8 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 try
                 {
                     string sql = @"INSERT INTO ADMINGIRISBILGILERI
-                           (AdminID, SifreHash, Email, Telefon,IlkGiris)
-                           VALUES (@id, @hash, @mail, @tel, 1)";
+                           (AdminID, SifreHash, Email, Telefon,IlkGiris,Aktiflik)
+                           VALUES (@id, @hash, @mail, @tel, 1,1)";
 
                     using (SqlCommand cmd = new SqlCommand(sql, con, tr))
                     {
@@ -196,8 +254,8 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             {
                 try
                 {
-                    MailHelper.SendPasswordMail(email, kullaniciAdi, plainPassword);
-                    await SmsHelper.SendSmsAsync(telefon, kullaniciAdi, plainPassword);
+                    MailHelper.maileIlkGirisBilgileriGonder(email, kullaniciAdi, plainPassword);
+                    await SmsHelper.smseIlkGirisBilgileriGonder(telefon, kullaniciAdi, plainPassword);
 
                     MessageBox.Show("Admin eklendi ve bilgiler gönderildi.");
                 }
@@ -212,7 +270,7 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 txtEmail.Clear();
                 txtTelefon.Clear();
                 LoadAdminler();
-
+                AktiflikRenkleriniUygula();
             }
         }
 
@@ -225,15 +283,7 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             txtTelefon.Text = dgvAdminler.Rows[e.RowIndex].Cells["Telefon"].Value.ToString();
         }
 
-        private void txtTelefon_TextChanged(object sender, EventArgs e)
-        {
-            if (txtTelefon.Text.Length > 13)
-            {
-                MessageBox.Show("Telefon numarası 13 karakterden fazla olamaz.");
-                txtTelefon.Text = txtTelefon.Text.Substring(0, 13);
-                txtTelefon.SelectionStart = txtTelefon.Text.Length;
-            }
-        }
+       
 
         private string GeneratePassword()
         {
@@ -254,7 +304,140 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             if (!Regex.IsMatch(txtTelefon.Text, @"^\+90\d{10}$"))
             {
                 MessageBox.Show("Telefon numarası +905XXXXXXXXX formatında olmalıdır.");
-                txtTelefon.Focus();
+                
+            }
+        }
+
+        private void btnAktiflikKaydet_Click(object sender, EventArgs e)
+        {
+            using SqlConnection con = new SqlConnection(conString);
+
+            DialogResult onay = MessageBox.Show(
+                   "Aktif/Pasif değişiklikleri kaydedilsin mi?",
+                   "Onay",
+                   MessageBoxButtons.YesNo,
+                   MessageBoxIcon.Question);
+
+            if (onay != DialogResult.Yes)
+            {
+                return;
+            }
+
+            con.Open();
+            SqlTransaction tr = con.BeginTransaction();
+
+            try
+            {
+                bool degisiklikVar = false;
+
+                // 🔴 En az 1 admin aktif kalmalı kontrolü
+                int aktifAdminSayisiDB = 0;
+
+                using (SqlCommand cmdCount = new SqlCommand(
+                    "SELECT COUNT(*) FROM ADMINGIRISBILGILERI WHERE Aktiflik = 1", con, tr))
+                {
+                    aktifAdminSayisiDB = (int)cmdCount.ExecuteScalar();
+                }
+
+                int pasifeCekilecek = 0;
+                int aktifeCekilecek = 0;
+
+                foreach (DataGridViewRow row in dgvAdminler.Rows)
+                {
+                    bool eski = row.Cells["Aktiflik"].Tag != DBNull.Value
+                                && Convert.ToBoolean(row.Cells["Aktiflik"].Tag);
+
+                    bool yeni = row.Cells["Aktiflik"].Value != DBNull.Value
+                                && Convert.ToBoolean(row.Cells["Aktiflik"].Value);
+
+                    if (eski == true && yeni == false)
+                        pasifeCekilecek++;
+
+                    if (eski == false && yeni == true)
+                        aktifeCekilecek++;
+                }
+
+                int sonAktifSayisi = aktifAdminSayisiDB - pasifeCekilecek + aktifeCekilecek;
+
+                if (sonAktifSayisi <= 0)
+                {
+                    MessageBox.Show("Sistemde en az 1 aktif admin bulunmak zorundadır. Bu işlem yapılamaz.");
+                    LoadAdminler();
+                    AktiflikRenkleriniUygula();
+                    return;
+                }
+
+                foreach (DataGridViewRow row in dgvAdminler.Rows)
+                {
+                    bool eski = row.Cells["Aktiflik"].Tag != DBNull.Value && Convert.ToBoolean(row.Cells["Aktiflik"].Tag);
+                    bool yeni = row.Cells["Aktiflik"].Value != DBNull.Value && Convert.ToBoolean(row.Cells["Aktiflik"].Value);
+
+
+                    if (eski != yeni)
+                    {
+                        degisiklikVar = true;
+
+                        SqlCommand cmd = new SqlCommand(
+                            "UPDATE ADMINGIRISBILGILERI SET Aktiflik=@a WHERE AdminID =@adminid",
+                            con, tr);
+
+                        cmd.Parameters.AddWithValue("@a", yeni);
+                        cmd.Parameters.AddWithValue("@adminid", row.Cells["AdminID"].Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                if (!degisiklikVar)
+                {
+                    MessageBox.Show("Herhangi bir aktiflik değişimi yapılmadı.");
+                    tr.Rollback();
+                    return;
+                }
+
+               
+
+                tr.Commit();
+                MessageBox.Show("Aktif/Pasif değişiklikleri kaydedildi.");
+                LoadAdminler();
+                AktiflikRenkleriniUygula();
+            }
+            catch
+            {
+                tr.Rollback();
+                MessageBox.Show("Aktiflik kaydedilirken hata oluştu.");
+            }
+        }
+
+        private void AktiflikRenkleriniUygula()
+        {
+            foreach (DataGridViewRow row in dgvAdminler.Rows)
+            {
+                bool aktif = Convert.ToBoolean(row.Cells["Aktiflik"].Value);
+
+                row.DefaultCellStyle.BackColor =
+                    aktif ? Color.White : Color.LightGray;
+
+                // Kalıcı durumu Tag'e kilitle
+                row.Cells["Aktiflik"].Tag = aktif;
+            }
+        }
+
+        private bool EmailGecerliMi(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            string pattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+            return Regex.IsMatch(email, pattern, RegexOptions.IgnoreCase);
+        }
+
+       
+        private void txtEmail_Leave(object sender, EventArgs e)
+        {
+            if (!EmailGecerliMi(txtEmail.Text.Trim()))
+            {
+                MessageBox.Show("Geçerli bir e-posta adresi giriniz.");
+                
             }
         }
     }

@@ -22,7 +22,11 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
         public static string con = "Server=AKALI;Database=OgrenciNotKayitSistemi;Trusted_Connection=True;TrustServerCertificate=True;";
         private bool girisTamamlandi = false;
-
+        private int denemeSayisigiris = 0;
+        private int denemeSayisiresim = 0;
+        private System.Windows.Forms.Timer kilitTimer = new System.Windows.Forms.Timer();
+        private int kilitSayac = 0;
+        private string tc;
 
         // Seçilen resmin doğru/yanlış bilgisini tutmak için
         private Dictionary<RadioButton, bool> secenekler = new Dictionary<RadioButton, bool>();
@@ -55,9 +59,9 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
         private void btnGiris_Click(object sender, EventArgs e)
         {
-            string tc = txtTC.Text;
+            tc = txtTC.Text;
             string okulno = txtOkulNo.Text;
-            
+
 
             if (string.IsNullOrWhiteSpace(tc) || string.IsNullOrWhiteSpace(okulno))
             {
@@ -65,34 +69,50 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 return;
             }
 
-            if (!okulno.All(char.IsDigit))  
+            if (!okulno.All(char.IsDigit))
             {
                 MessageBox.Show("Öğrenci numarası sadece rakamlardan oluşmalı !");
                 return;
             }
 
-            if (!ValidateTCKimlik(tc))
-            {
-                MessageBox.Show("Geçersiz T.C. Kimlik Numarası!");
-                return;
-            }
+            //if (!ValidateTCKimlik(tc))
+            //{
+            //    MessageBox.Show("Geçersiz T.C. Kimlik Numarası!");
+            //    return;
+            //}
 
             using (SqlConnection connection = new SqlConnection(con))
             {
                 connection.Open();
+
                 string query = "SELECT * from OGRGIRISBILGILERI WHERE OGRNO =@okulno and tckimlikno =@tc";
+
                 SqlCommand cmd = new SqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@okulno", okulno);
                 cmd.Parameters.AddWithValue("@tc", tc);
+
                 SqlDataReader dr = cmd.ExecuteReader();
 
-                if (dr.HasRows)
+
+                if (dr.Read())
                 {
+                    bool aktifMi = dr["Aktiflik"] != DBNull.Value && Convert.ToBoolean(dr["Aktiflik"]);
+
+                    if (!aktifMi)
+                    {
+                        MessageBox.Show(
+                            "Bu hesap pasif durumda olduğu için şu anda sisteme giriş yapılamıyor.\nLütfen yönetici ile iletişime geçin."
+                        );
+                        return;
+                    }
+
                     girisTamamlandi = true;
 
+                    btnDevam.Visible = true;
+
+                    btnGiris.Enabled = false;
                     txtTC.Enabled = false;
                     txtOkulNo.Enabled = false;
-                    btnGiris.Enabled = false;
 
                     lblResimSec.Visible = true;
                     panel1.Visible = true;
@@ -104,22 +124,44 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                     radioButton2.Visible = true;
                     radioButton3.Visible = true;
                     radioButton4.Visible = true;
-                    btnDevam.Visible = true;
 
-                    this.Width = 872;
-                    this.Height = 674;
-                    ResimleriGetir(okulno);
+
+                    this.Width = 1116;
+                    this.Height = 850;
+                    ResimleriGetir(tc);
                 }
+
                 else
                 {
-                    MessageBox.Show("Böyle bir öğrenci bulunamadı");
-                    return;
+                    denemeSayisigiris++;
+
+                    if (denemeSayisigiris >= 3)
+                    {
+                        MessageBox.Show("3 kez yanlış giriş yaptınız. 10 saniye bekleyiniz.");
+
+                        btnGiris.Enabled = false;
+                        btnGeri.Enabled = false;
+                        txtTC.Enabled = false;
+                        txtOkulNo.Enabled = false;
+
+                        kilitSayac = 10;
+                        kilitTimer.Start();
+
+                        denemeSayisigiris = 0;
+                        return;
+                    }
+                    MessageBox.Show("Böyle bir öğrenci bulunamadı.");
                 }
             }
         }
 
         private void FrmOgrenciGiris_Load(object sender, EventArgs e)
         {
+            kilitTimer.Interval = 1000; // 1 saniye
+            kilitTimer.Tick += KilitTimer_Tick;
+
+            this.FormBorderStyle = FormBorderStyle.FixedSingle; //formu kullanıcı büyütmesin istiyorsan kullan.
+
             foreach (Control c in this.Controls)
             {
                 if (c is TextBox)
@@ -145,27 +187,53 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
         }
 
-        private void ResimleriGetir(string okulno)
+        private void ResimleriGetir(string tc)
         {
             List<(byte[] Resim, bool DogruMu)> resimler = new List<(byte[], bool)>();
 
             using (SqlConnection conn = new SqlConnection(con))
             {
                 conn.Open();
-                string query = "SELECT Resim, DogruMu FROM Resimler WHERE okulno=@okulno";
+
+                string query = @"
+SELECT *
+FROM
+(
+    SELECT FotoData AS Resim, 1 AS DogruMu
+    FROM FOTOGRAFLAR
+    WHERE TC = @tc
+
+    UNION ALL
+
+    SELECT TOP 3 Resim, 0 AS DogruMu
+    FROM YANLIS_RESIMLER
+ORDER BY NEWID()
+) AS X
+ORDER BY NEWID();
+";
+
+
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
-                    cmd.Parameters.AddWithValue("@okulno", okulno);
+                    cmd.Parameters.AddWithValue("@tc", tc);
+
                     using (SqlDataReader dr = cmd.ExecuteReader())
                     {
                         while (dr.Read())
                         {
                             byte[] resim = (byte[])dr["Resim"];
-                            bool dogruMu = (bool)dr["DogruMu"];
+                            bool dogruMu = Convert.ToBoolean(dr["DogruMu"]);
+
                             resimler.Add((resim, dogruMu));
                         }
                     }
                 }
+            }
+
+            if (resimler.Count != 4)
+            {
+                MessageBox.Show("Resimler yüklenemedi. Yeterli veri yok.");
+                return;
             }
 
             Random rnd = new Random();
@@ -183,21 +251,19 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                     boxes[i].Image = Image.FromStream(ms);
                 }
 
-                // Her RadioButton ile doğru/yanlış bilgisini eşleştir
                 secenekler[radios[i]] = karisik[i].DogruMu;
             }
         }
-
         private void btnDevam_Click(object sender, EventArgs e)
         {
-            string okulno = txtOkulNo.Text;
+            tc = txtTC.Text;
 
             RadioButton[] radios = { radioButton1, radioButton2, radioButton3, radioButton4 };
             RadioButton secilen = radios.FirstOrDefault(r => r.Checked);
 
             if (secilen == null)
             {
-                MessageBox.Show("Lütfen bir seçim yapınız!");
+                MessageBox.Show("Lütfen bir resim seçiniz!");
                 return;
             }
 
@@ -205,17 +271,65 @@ namespace Öğrenci_Not_Kayıt_Sistemi
 
             if (dogruMu)
             {
-                MessageBox.Show("Giriş Başarılı !");
-                FrmOgrenci frm = new FrmOgrenci();
-               
+                MessageBox.Show("Giriş Başarılı!");
+                FrmOgrenci frm = new FrmOgrenci(tc);
                 frm.Show();
                 this.Hide();
+
             }
             else
             {
-                MessageBox.Show("Yanlış seçim, tekrar deneyiniz!");
+                denemeSayisiresim++;
+
+                if (denemeSayisiresim >= 3)
+                {
+                    MessageBox.Show("3 kez yanlış resim seçtiniz. 10 saniye kilitlendi.");
+
+                    txtTC.Enabled = false;
+                    txtOkulNo.Enabled = false;
+                    btnDevam.Enabled = false;
+                    btnGeri.Enabled = false;
+                    btnGiris.Enabled = false;
+
+                    girisTamamlandi = false;
+
+                    lblResimSec.Visible = false;
+                    panel1.Visible = false;
+                    pictureBox1.Visible = false;
+                    pictureBox2.Visible = false;
+                    pictureBox3.Visible = false;
+                    pictureBox4.Visible = false;
+                    radioButton1.Visible = false;
+                    radioButton2.Visible = false;
+                    radioButton3.Visible = false;
+                    radioButton4.Visible = false;
+
+
+                    this.Width = 816;
+                    this.Height = 489;
+
+                    txtTC.Clear();
+                    txtOkulNo.Clear();
+                    kilitSayac = 10;
+                    kilitTimer.Start();
+
+                    denemeSayisiresim = 0;
+                    denemeSayisigiris = 0;
+                    return;
+                }
+
+
+                MessageBox.Show("Yanlış seçim,Resimler yenileniyor.Tekrar deneyiniz.");
+
+                // Seçimleri sıfırla
+                foreach (var r in radios)
+                    r.Checked = false;
+
+                // Resimleri yeniden yükle
+                ResimleriGetir(txtTC.Text);
             }
         }
+
 
         private void btnGeri_Click(object sender, EventArgs e)
         {
@@ -229,12 +343,6 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             {
                 girisTamamlandi = false;
 
-                txtTC.Enabled = true;
-                txtOkulNo.Enabled = true;
-                btnGiris.Enabled = true;
-
-
-
                 lblResimSec.Visible = false;
                 panel1.Visible = false;
                 pictureBox1.Visible = false;
@@ -247,8 +355,15 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 radioButton4.Visible = false;
                 btnDevam.Visible = false;
 
+                btnGiris.Enabled = true;
+                txtOkulNo.Enabled = true;
+                txtTC.Enabled = true;
+
                 this.Width = 816;
                 this.Height = 489;
+
+                txtTC.Clear();
+                txtOkulNo.Clear();
             }
         }
 
@@ -279,5 +394,24 @@ namespace Öğrenci_Not_Kayıt_Sistemi
                 e.Handled = true;
             }
         }
+
+        private void KilitTimer_Tick(object sender, EventArgs e)
+        {
+            kilitSayac--;
+
+            if (kilitSayac <= 0)
+            {
+                kilitTimer.Stop();
+
+                btnGiris.Enabled = true;
+                btnDevam.Enabled = true;
+                btnGeri.Enabled = true;
+                txtTC.Enabled = true;
+                txtOkulNo.Enabled = true;
+
+                MessageBox.Show("Giriş tekrar aktif edildi.");
+            }
+        }
+
     }
 }

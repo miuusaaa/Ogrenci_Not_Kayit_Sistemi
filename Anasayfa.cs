@@ -28,5 +28,9 @@ namespace Öğrenci_Not_Kayıt_Sistemi
             this.Hide();
         }
 
+        private void Anasayfa_Load(object sender, EventArgs e)
+        {
+            this.FormBorderStyle = FormBorderStyle.FixedSingle; //formu kullanıcı büyütmesin istiyorsan kullan.
+        }
     }
 }
